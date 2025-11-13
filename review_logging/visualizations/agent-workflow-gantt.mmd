@@ -1,0 +1,24 @@
+gantt
+    title Automated Cron Analysis System Workflow
+    dateFormat  YYYY-MM-DD HH:mm
+    axisFormat %m/%d %H:%M
+    
+    section Data Collection
+    GitHub API Scan   :active, github, 2025-11-13 00:00, 30m
+    Conflict Detection :conflict, after github, 15m
+    
+    section Analysis Pipeline
+    GLM 4.6 Analysis  :glm, after conflict, 45m
+    Pattern Recognition :pattern, after glm, 20m
+    
+    section Research & Solutions
+    Internet Search   :search, after pattern, 25m
+    Solution Research :research, after search, 30m
+    
+    section Visualization
+    Mermaid Generation :mermaid, after research, 20m
+    Report Compilation :report, after mermaid, 15m
+    
+    section Output
+    File Updates      :files, after report, 10m
+    Git Commit        :commit, after files, 5m

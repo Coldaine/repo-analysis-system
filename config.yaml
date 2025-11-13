@@ -1,0 +1,146 @@
+# Agentic Repository Analysis System Configuration
+# Environment variables and settings for automated cron analysis
+
+# API Configuration
+api_keys:
+  github_token: "${GITHUB_TOKEN}"  # GitHub API token for repository access
+  glm_api_key: "${GLM_API_KEY}"    # GLM 4.6 API key for analysis
+  minimax_api_key: "${MINIMAX_API_KEY}"  # MiniMax API key for lightweight tasks
+  google_search_key: "${GOOGLE_SEARCH_KEY}"  # Google Custom Search API key
+
+# Model Endpoints
+models:
+  glm_4_6:
+    base_url: "https://open.bigmodel.cn/api/paas/v4/"
+    model: "glm-4.6"
+    max_tokens: 4000
+    temperature: 0.3
+    
+  minimax:
+    base_url: "https://api.minimax.chat/v1/"
+    model: "abab6.5s-chat"
+    max_tokens: 2000
+    temperature: 0.2
+    
+  ollama:
+    base_url: "http://localhost:11434/v1/"
+    model: "llama2"
+    max_tokens: 2000
+    temperature: 0.1
+
+# Cron Schedule Configuration
+cron:
+  schedule: "0 */6 * * *"  # Every 6 hours
+  timezone: "UTC"
+  retry_attempts: 3
+  retry_delay: 300  # 5 minutes between retries
+
+# Repository Analysis Settings
+repositories:
+  workspace_path: "e:/_projectsGithub"
+  target_repos:
+    - "ActuarialKnowledge"
+    - "ui-mermaid-visualizer"
+    - "ColdVox"
+    - "Comfyuimodelmanagementdashboard"
+    - "TabStorm"
+    - "colossus"
+    - "ui-jules-control-room"
+  
+  analysis_filters:
+    days_since_last_commit: 30  # Only analyze repos with activity in last 30 days
+    min_pr_count: 1  # Only analyze repos with at least 1 PR
+    include_forks: false
+
+# Agent Configuration
+agents:
+  data_collection:
+    timeout: 300  # 5 minutes
+    batch_size: 10  # Process 10 repos at a time
+    
+  pain_point_analyzer:
+    primary_model: "glm_4_6"
+    fallback_model: "minimax"
+    confidence_threshold: 0.7
+    
+  search_agent:
+    search_provider: "duckduckgo"  # Options: duckduckgo, google
+    max_results: 10
+    timeout: 60  # 1 minute
+    
+  visual_generator:
+    output_format: "mermaid"
+    max_diagrams: 5
+    render_svg: true
+    
+  output_agent:
+    output_directory: "review_logging"
+    file_prefix: "prototype-run"
+    commit_changes: true
+
+# Visualization Settings
+visualizations:
+  types:
+    - "timeline"
+    - "gantt"
+    - "flowchart"
+    - "sequence"
+    - "xychart"
+  
+  styling:
+    theme: "default"
+    color_scheme:
+      healthy: "#e8f5e9"
+      warning: "#fff3e0"
+      critical: "#ffebee"
+      info: "#e1f5fe"
+    
+  limits:
+    max_nodes: 20
+    max_events_per_timeline: 7
+    max_concurrent_tasks: 12
+
+# Error Handling
+error_handling:
+  max_retries: 3
+  backoff_factor: 2
+  timeout_default: 120  # 2 minutes
+  log_level: "INFO"
+  
+# Performance Settings
+performance:
+  max_concurrent_agents: 5
+  cache_duration: 3600  # 1 hour cache for API responses
+  rate_limiting:
+    github: 5000  # requests per hour
+    glm: 100     # requests per minute
+    minimax: 50  # requests per minute
+
+# Output Settings
+output:
+  generate_markdown: true
+  generate_mermaid: true
+  generate_json: false
+  compress_outputs: false
+  
+  directories:
+    logs: "logs"
+    visualizations: "review_logging/visualizations"
+    rendered: "review_logging/rendered"
+    summaries: "review_logging/summaries"
+
+# Monitoring and Alerts
+monitoring:
+  enable_metrics: true
+  metrics_port: 8080
+  alert_thresholds:
+    failure_rate: 0.1  # Alert if >10% failure rate
+    response_time: 300  # Alert if >5 minute response time
+    cost_daily: 0.50   # Alert if >$0.50 daily cost
+
+# Security Settings
+security:
+  encrypt_api_keys: true
+  audit_logging: true
+  data_retention_days: 90
+  anonymize_logs: true

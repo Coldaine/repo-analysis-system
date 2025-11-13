@@ -1,0 +1,23 @@
+flowchart TD
+    A[CI Pipeline Trigger] --> B{Lint Pass?}
+    B -->|No| C[Lint Failure<br/>Auto-comment PR]
+    B -->|Yes| D{Tests Pass?}
+    D -->|No| E[Test Failure<br/>Create Issue]
+    D -->|Yes| F{Security Scan?}
+    F -->|No| G[Missing Security<br/>Template Application]
+    F -->|Yes| H{Merge Conflicts?}
+    H -->|Yes| I[Conflict Resolution<br/>Agent Assistance]
+    H -->|No| J[Ready for Review]
+    C --> K[Developer Notification]
+    E --> K
+    G --> K
+    I --> L[Automated Rebase]
+    L --> J
+    J --> M[Approval Process]
+    M --> N[Merge to Main]
+    
+    style A fill:#e1f5fe
+    style N fill:#e8f5e9
+    style C fill:#ffebee
+    style E fill:#ffebee
+    style G fill:#fff3e0
