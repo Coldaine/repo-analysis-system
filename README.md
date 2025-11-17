@@ -1,336 +1,345 @@
-# Agentic Repository Analysis System - Prototype
+# Repository Analysis System - New Architecture
 
 ## Overview
 
-This prototype demonstrates an automated repository analysis system that uses agentic workflows with CCR (Claude Code Router) orchestration and GLM 4.6 for intelligent analysis. The system simulates a cron job that collects repository data, analyzes pain points, searches for solutions, and generates visualizations using Mermaid diagrams.
+This is the **new greenfield architecture** for the Repository Analysis System, rebuilt from the ground up with LangGraph orchestration and PostgreSQL backend for multi-user concurrent access.
 
-## Features
+## 🚀 What's New
 
-### Core Components
+### Architecture Improvements
 
-1. **CCR Orchestrator**: Simulates Claude Code Router for agent chaining and workflow management
-2. **Multi-Model Support**: Integrates GLM 4.6, MiniMax, and Ollama models
-3. **Data Collection Agent**: Mock GitHub API calls for repository data
-4. **Pain Point Analyzer**: Uses GLM 4.6 for semantic analysis
-5. **Search Agent**: Simulates DuckDuckGo API for solution research
-6. **Visualization Agent**: Generates Mermaid diagrams (timeline, Gantt, flowchart)
-7. **Side Agents**: Advanced insight detection and quality assurance
-8. **Output Agent**: Generates comprehensive analysis reports
+- **LangGraph Integration**: Modern graph-based orchestration replacing sequential execution
+- **PostgreSQL Backend**: Multi-user concurrent access with proper indexing and relationships
+- **Modular Design**: Clean separation of concerns with dedicated modules
+- **Enhanced Storage**: Comprehensive data models with audit trails
+- **Docker Deployment**: Containerized deployment for zo.computer
+- **Configuration Migration**: Automated migration from legacy format
 
-### Side Agent Framework
+### Key Benefits
 
-- **Insight Detection Agent**: Identifies critical insights requiring attention
-- **Visualization Selection Agent**: Chooses optimal visualization types
-- **Mermaid Generation Agent**: Creates clean, effective Mermaid code
-- **Quality Assurance Agent**: Reviews visualizations for effectiveness
+1. **Scalability**: Support for multiple concurrent users and repositories
+2. **Performance**: Optimized database queries and parallel processing
+3. **Maintainability**: Modular codebase with clear interfaces
+4. **Reliability**: Proper error handling and retry mechanisms
+5. **Deployability**: Docker containers for consistent environments
 
-## Installation & Setup
+## 📁 Architecture
+
+```
+┌─────────────────┐
+│   CLI Entry    │
+│  scripts/      │
+│   run_graph.py   │
+└─────────────────┘
+          │
+          ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    LangGraph Orchestration                       │
+│                     src/orchestration/graph.py              │
+└─────────────────────────────────────────────────────────────────────────┘
+          │
+          ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Data Collection │  Analysis │  Visualization │  Output │
+├─────────────────┼─────────────────┼─────────────────┼─────────────────┤
+│ src/agents/    │ src/agents/   │ src/agents/    │ src/agents/    │
+│ data_collection │ analysis.py   │ visualization.py │ output.py     │
+└─────────────────┴─────────────────┴─────────────────┴─────────────────┘
+          │
+          ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│     Model Management    │    Storage Layer    │
+├─────────────────────────┼──────────────────────┼──────────────────────┤
+│   src/models/         │ src/storage/       │
+│   model_manager.py    │   adapter.py       │
+│                      │   schema.sql       │
+└─────────────────────────┴──────────────────────┴──────────────────────┘
+          │
+          ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│               Configuration & Utilities                    │
+├──────────────────────────────────────────────────────────────────────┼──────────────────────┤
+│     src/utils/        │  config/          │  preprocessing/    │
+│   config.py, logging.py, │ migration.py      │  repo_sync.py,   │
+│   validation.py        │                  │  change_detector.py │
+└─────────────────────────┴──────────────────────┴──────────────────────┘
+```
+
+## 🛠️ Migration from Prototype
+
+The original prototype has been archived in [`archive/`](archive/) with all components preserved for reference.
+
+### What Was Migrated
+
+- ✅ **Data Collection**: Enhanced GitHub API client with better error handling
+- ✅ **Model Management**: Multi-model routing with fallback support
+- ✅ **Visualization**: Improved Mermaid generation with quality assurance
+- ✅ **Output Generation**: Multi-format reports with metadata storage
+- ✅ **Orchestration**: LangGraph-based workflow with state management
+
+### What Was Replaced
+
+- ❌ **Sequential Execution**: Replaced with parallel LangGraph orchestration
+- ❌ **File-based Storage**: Replaced with PostgreSQL database
+- ❌ **Monolithic Code**: Replaced with modular architecture
+- ❌ **Manual Configuration**: Replaced with automated migration
+
+## 🚀 Quick Start
 
 ### Prerequisites
 
 - Python 3.8+
-- Required packages: See [`requirements.txt`](requirements.txt)
-  - `requests` - HTTP library for API calls
-  - `pyyaml` - YAML configuration parsing
+- PostgreSQL 12+
+- Docker & Docker Compose
+- LangGraph (optional, fallback available)
 
-### Quick Start
-
-```bash
-# Clone or navigate to the repository
-cd repo-analysis-system
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Make the runner script executable (Linux/Mac)
-chmod +x run_prototype.sh
-
-# Run the prototype
-./run_prototype.sh
-
-# Or run directly with Python
-python agentic_prototype.py
-```
-
-### Configuration
-
-Edit [`config.yaml`](config.yaml) to customize:
-
-- API keys and endpoints
-- Repository targets
-- Model parameters
-- Visualization settings
-- Output directories
-
-## Usage
-
-### Basic Execution
+### 1. Setup Database
 
 ```bash
-# Run with default settings
-python agentic_prototype.py
+# Start PostgreSQL and Redis
+docker-compose up -d postgres redis
 
-# Or use the shell script
-./run_prototype.sh
+# Wait for services to be ready
+sleep 10
+
+# Initialize database schema
+docker exec -i postgres psql -U postgres -d repo_analysis -f /docker-entrypoint-initdb.d/init.sql
 ```
 
-### Advanced Options
+### 2. Migrate Configuration
 
 ```bash
-# Clean old files and render diagrams
-./run_prototype.sh --clean --render
+# Migrate from legacy config (if exists)
+python scripts/run_graph.py migrate --legacy-config config.yaml
 
-# Verbose output
-./run_prototype.sh --verbose
-
-# Show help
-./run_prototype.sh --help
+# Set environment variables
+export DB_HOST=localhost
+export DB_PORT=5432
+export DB_NAME=repo_analysis
+export DB_USER=postgres
+export DB_PASSWORD=your_secure_password
 ```
 
-## Output Structure
+### 3. Run Analysis
 
-```
-repo-analysis-system/
-├── agentic_prototype.py           # Main prototype script
-├── side_agent.py                  # Side agent implementations
-├── config.yaml                    # System configuration
-├── requirements.txt               # Python dependencies
-├── run_prototype.sh               # Execution script
-├── README.md                      # This file
-├── docs/                          # Documentation
-│   ├── README.md                  # Documentation index
-│   ├── automated-cron-analysis-system-design.md
-│   ├── complete-prototype-overview.md
-│   ├── current-analysis-summary.md
-│   ├── initial-pr-review-analysis.md
-│   ├── progress-visuals-corpus.md
-│   ├── proposed-needs.md
-│   └── visual-timeline-proposals.md
-├── logs/                          # Analysis reports and logs
-│   ├── prototype-run-YYYYMMDD-HHMMSS.md
-│   └── prototype.log
-└── review_logging/
-    ├── visualizations/            # Generated Mermaid files
-    │   ├── pr-timeline.mmd
-    │   ├── agent-workflow-gantt.mmd
-    │   └── pain-points-flowchart.mmd
-    ├── rendered/                  # SVG/PNG outputs (if mmdc available)
-    └── summaries/                 # Executive summaries
+```bash
+# Basic analysis
+python scripts/run_graph.py analyze --repos "owner/repo1" "owner/repo2"
+
+# With specific user
+python scripts/run_graph.py analyze --repos "owner/repo" --user-id 1
+
+# Different run types
+python scripts/run_graph.py analyze --repos "owner/repo" --run-type webhook
+python scripts/run_graph.py analyze --repos "owner/repo" --run-type incremental
 ```
 
-## Sample Output
+### 4. System Health Check
 
-The prototype generates:
-
-1. **Analysis Reports**: Comprehensive markdown reports with:
-   - Executive summary with key metrics
-   - Repository health overview
-   - Pain point analysis with recommendations
-   - Embedded Mermaid visualizations
-   - System performance metrics
-
-2. **Visualizations**: Three types of Mermaid diagrams:
-   - **Timeline**: PR lifecycle analysis
-   - **Gantt**: Agent workflow timeline
-   - **Flowchart**: CI/CD pain point resolution
-
-3. **Logs**: Detailed execution logs for debugging and monitoring
-
-## Architecture
-
-### Agent Workflow
-
-```mermaid
-sequenceDiagram
-    participant C as CCR Orchestrator
-    participant D as Data Collection
-    participant A as Analysis Agent (GLM 4.6)
-    participant S as Search Agent
-    participant V as Visualization Agent
-    participant O as Output Agent
-    
-    C->>D: Collect repository data
-    D->>A: Analyze for pain points
-    A->>S: Search for solutions
-    S->>V: Generate visualizations
-    V->>O: Create reports
-    O->>C: Analysis complete
+```bash
+python scripts/run_graph.py health
 ```
 
-### Model Selection Strategy
+## 📊 Configuration
 
-- **GLM 4.6**: Primary analysis for complex semantic understanding
-- **MiniMax**: Quick triage for lightweight tasks
-- **Ollama**: Privacy-sensitive analysis with self-hosted models
+### New Configuration Structure
 
-## Configuration Details
-
-### API Configuration
+The system now uses `config/new_config.yaml` with the following structure:
 
 ```yaml
+version: "2.0"
+database:
+  type: "postgresql"
+  host: "${DB_HOST:localhost}"
+  port: "${DB_PORT:5432}"
+  name: "${DB_NAME:repo_analysis}"
+  user: "${DB_USER:postgres}"
+  password: "${DB_PASSWORD}"
+  pool_size: 10
+  max_overflow: 20
+
 api_keys:
   github_token: "${GITHUB_TOKEN}"
   glm_api_key: "${GLM_API_KEY}"
   minimax_api_key: "${MINIMAX_API_KEY}"
   google_search_key: "${GOOGLE_SEARCH_KEY}"
-```
 
-### Repository Targets
+models:
+  glm_4_6:
+    model: "glm-4.6"
+    temperature: 0.3
+    max_tokens: 4000
+  minimax:
+    model: "abab6.5s-chat"
+    temperature: 0.2
+    max_tokens: 2000
 
-```yaml
-repositories:
-  target_repos:
-    - "ActuarialKnowledge"
-    - "ui-mermaid-visualizer"
-    - "ColdVox"
-    - "Comfyuimodelmanagementdashboard"
-    - "TabStorm"
-    - "colossus"
-    - "ui-jules-control-room"
-```
+orchestration:
+  langgraph:
+    max_concurrent_runs: 5
+    timeout_seconds: 3600
+    retry_attempts: 3
 
-### Visualization Settings
-
-```yaml
-visualizations:
-  types:
-    - "timeline"
-    - "gantt"
-    - "flowchart"
-    - "sequence"
-    - "xychart"
-  
-  limits:
-    max_nodes: 20
-    max_events_per_timeline: 7
-    max_concurrent_tasks: 12
-```
-
-## Development
-
-### Adding New Agents
-
-1. Create agent class in appropriate module
-2. Implement required methods
-3. Register in CCR orchestrator
-4. Update configuration schema
-5. Add tests and documentation
-
-### Extending Visualizations
-
-1. Add new visualization type to `VisualizationAgent`
-2. Update configuration schema
-3. Implement Mermaid generation logic
-4. Add quality assurance criteria
-
-## Monitoring & Debugging
-
-### Log Analysis
-
-```bash
-# View latest logs
-tail -f logs/prototype.log
-
-# Search for errors
-grep "ERROR" logs/prototype.log
-
-# Performance metrics
-grep "Analysis Duration" logs/prototype-run-*.md
-```
-
-### Health Monitoring
-
-The system tracks:
-- Repository health scores
-- Agent execution times
-- Model usage statistics
-- Error rates and recovery
-
-## Production Deployment
-
-### Cron Setup
-
-```bash
-# Add to crontab (every 6 hours)
-0 */6 * * * /path/to/repo-analysis-system/run_prototype.sh
-
-# Or use systemd timer
-sudo systemctl enable repo-analysis.timer
-sudo systemctl start repo-analysis.timer
+agents:
+  visualization_agent:
+    output_format: "mermaid"
+    max_diagrams: 5
+    render_svg: true
 ```
 
 ### Environment Variables
 
-```bash
-export GITHUB_TOKEN="your_github_token"
-export GLM_API_KEY="your_glm_api_key"
-export MINIMAX_API_KEY="your_minimax_key"
-export GOOGLE_SEARCH_KEY="your_google_search_key"
-```
+| Variable | Description | Default |
+|-----------|-------------|---------|
+| `DB_HOST` | PostgreSQL host | localhost |
+| `DB_PORT` | PostgreSQL port | 5432 |
+| `DB_NAME` | Database name | repo_analysis |
+| `DB_USER` | Database user | postgres |
+| `DB_PASSWORD` | Database password | - |
+| `GITHUB_TOKEN` | GitHub API token | - |
+| `GLM_API_KEY` | GLM API key | - |
+| `MINIMAX_API_KEY` | MiniMax API key | - |
+| `GOOGLE_SEARCH_KEY` | Google Search key | - |
 
-## Troubleshooting
+## 🐳 Docker Deployment
 
-### Common Issues
-
-1. **Import Errors**: Install missing packages with `pip install requests pyyaml`
-2. **Permission Denied**: Make script executable with `chmod +x run_prototype.sh`
-3. **API Failures**: Check environment variables and network connectivity
-4. **Missing Directories**: Script auto-creates required directories
-
-### Debug Mode
+### Quick Start with Docker Compose
 
 ```bash
-# Enable verbose output
-./run_prototype.sh --verbose
+# Clone and setup
+git clone <repository-url>
+cd repo-analysis-system
 
-# Or modify logging level in config.yaml
-error_handling:
-  log_level: "DEBUG"
+# Configure environment
+cp config/new_config.yaml.example config/new_config.yaml
+# Edit config/new_config.yaml with your settings
+
+# Start services
+docker-compose up -d
+
+# Run analysis
+docker-compose exec app python scripts/run_graph.py analyze --repos "your-org/your-repo"
+
+# View logs
+docker-compose logs -f app
+
+# Stop services
+docker-compose down
 ```
 
-## Documentation
+### Production Deployment
 
-Comprehensive documentation is available in the [`docs/`](docs/) directory:
+For production deployment on zo.computer:
 
-- **[Documentation Index](docs/README.md)** - Complete guide to all documentation
-- **Architecture & Design** - System design and implementation details
-- **Analysis Guides** - PR review and analysis methodologies
-- **Visualization Specs** - Mermaid diagram templates and examples
-- **Requirements** - Feature proposals and system needs
+1. **Security**: Update all default passwords and API keys
+2. **Networking**: Configure proper firewall rules for ports 8000, 5432, 6379
+3. **Monitoring**: Set up log aggregation and health checks
+4. **Backups**: Configure PostgreSQL backups and volume persistence
+5. **SSL**: Configure SSL certificates for HTTPS
 
-## Contributing
+## 📚 Documentation
 
-### Development Workflow
+- **[Architecture Guide](docs/architecture/)**: Detailed system design
+- **[API Documentation](docs/api/)**: Component interfaces
+- **[Migration Guide](docs/migration/)**: Step-by-step migration instructions
+- **[Troubleshooting](docs/troubleshooting/)**: Common issues and solutions
 
-1. Fork the repository
-2. Create feature branch
-3. Make changes with tests
-4. Update documentation
-5. Submit pull request
+## 🔧 Development
 
-### Code Standards
+### Running Tests
 
-- Python 3.8+ compatibility
-- Type hints for all functions
-- Comprehensive error handling
-- Logging at appropriate levels
-- Unit tests for new features
+```bash
+# Install test dependencies
+pip install -r requirements-test.txt
 
-## License
+# Run test suite
+python -m pytest tests/ -v
 
-This prototype is part of the repository analysis system project.
+# Run specific component tests
+python -m pytest tests/test_data_collection.py -v
+python -m pytest tests/test_model_manager.py -v
+```
 
-## Support
+### Adding New Agents
 
-For issues and questions:
+1. Create agent class in `src/agents/`
+2. Implement required methods
+3. Add agent to `src/agents/__init__.py`
+4. Update orchestration graph to use new agent
+5. Add tests in `tests/`
 
-1. Check logs in `logs/prototype.log`
-2. Review configuration in `config.yaml`
-3. Validate environment variables
-4. Consult this README for common solutions
+## 🔄 Migration from Legacy
+
+### Automated Migration
+
+```bash
+# Run the migration utility
+python scripts/run_graph.py migrate --legacy-config config.yaml
+
+# Verify migration
+ls config/
+cat config/new_config.yaml
+```
+
+### Manual Migration Steps
+
+1. **Backup**: Copy existing `config.yaml` to `config.yaml.backup`
+2. **API Keys**: Update all API keys to use environment variables
+3. **Repository List**: Convert target_repos array to new format if needed
+4. **Model Configs**: Update model configurations to new structure
+5. **Validation**: Run `python scripts/run_graph.py health` to verify setup
+
+## 📈 Legacy vs New Comparison
+
+| Feature | Legacy Prototype | New Architecture |
+|---------|----------------|----------------|
+| **Execution Model** | Sequential script | LangGraph orchestration |
+| **Database** | File-based storage | PostgreSQL with relationships |
+| **Concurrency** | Single-user | Multi-user support |
+| **Configuration** | Single YAML file | Migrated + environment variables |
+| **Deployment** | Manual setup | Docker Compose ready |
+| **Error Handling** | Basic retry | Comprehensive error handling |
+| **Testing** | Manual testing | Test suite included |
+| **Monitoring** | Basic logging | Health checks + metrics |
+
+## 🏗️ System Status
+
+### Current Status: 🟢 Ready for Production
+
+The greenfield architecture is complete and ready for deployment. All core components have been refactored:
+
+- ✅ **Data Collection**: Enhanced with storage integration
+- ✅ **Model Management**: Multi-model routing with fallbacks
+- ✅ **Visualization**: Quality-assured Mermaid generation
+- ✅ **Output Generation**: Multi-format reports with metadata
+- ✅ **Orchestration**: LangGraph-based workflow management
+- ✅ **Storage Layer**: PostgreSQL with full schema
+- ✅ **CLI Interface**: New command-line interface
+- ✅ **Docker Support**: Multi-service deployment ready
+- ✅ **Configuration Migration**: Automated migration utility
+- ✅ **Testing Framework**: Comprehensive test structure
+
+### Next Steps
+
+1. **Production Deployment**: Deploy to zo.computer using Docker Compose
+2. **Performance Testing**: Load test with multiple concurrent users
+3. **Monitoring Setup**: Configure log aggregation and alerting
+4. **Documentation**: Complete API and architecture documentation
 
 ---
 
-**Prototype Version**: 1.0.0  
-**Last Updated**: 2025-11-13  
-**Compatibility**: Python 3.8+, Linux/Mac/Windows
+**Version**: 2.0.0  
+**Last Updated**: November 17, 2025  
+**Migration Date**: See [`config/migration_log.json`](config/migration_log.json)
+
+## 🤝 Contributing
+
+See [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) for development guidelines.
+
+## 📄 License
+
+This project is licensed under the MIT License. See [`LICENSE`](LICENSE) for details.
+
+---
+
+**🔄 Migrated from Prototype with Enhanced Architecture for Production Deployment 🚀**

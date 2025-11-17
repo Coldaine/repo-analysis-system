@@ -38,6 +38,9 @@ cron:
 # Repository Analysis Settings
 repositories:
   workspace_path: "e:/_projectsGithub"
+  default_owner: "${GITHUB_OWNER}"
+  github_api_base: "https://api.github.com"
+  max_pull_requests: 10
   target_repos:
     - "ActuarialKnowledge"
     - "ui-mermaid-visualizer"
