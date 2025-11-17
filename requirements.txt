@@ -1,0 +1,17 @@
+# Agentic Repository Analysis System - Python Dependencies
+
+# Core Dependencies
+requests>=2.31.0
+pyyaml>=6.0.1
+
+# Optional Dependencies (for enhanced functionality)
+# Uncomment if needed for your environment
+
+# For diagram rendering (if using mmdc)
+# pillow>=10.0.0
+
+# For enhanced logging
+# colorlog>=6.7.0
+
+# For async operations (future enhancement)
+# aiohttp>=3.9.0

@@ -29,13 +29,18 @@ This prototype demonstrates an automated repository analysis system that uses ag
 ### Prerequisites
 
 - Python 3.8+
-- Required packages: `requests`, `pyyaml`, `pathlib`
+- Required packages: See [`requirements.txt`](requirements.txt)
+  - `requests` - HTTP library for API calls
+  - `pyyaml` - YAML configuration parsing
 
 ### Quick Start
 
 ```bash
 # Clone or navigate to the repository
 cd repo-analysis-system
+
+# Install dependencies
+pip install -r requirements.txt
 
 # Make the runner script executable (Linux/Mac)
 chmod +x run_prototype.sh
@@ -86,17 +91,31 @@ python agentic_prototype.py
 
 ```
 repo-analysis-system/
-├── logs/                           # Analysis reports and logs
+├── agentic_prototype.py           # Main prototype script
+├── side_agent.py                  # Side agent implementations
+├── config.yaml                    # System configuration
+├── requirements.txt               # Python dependencies
+├── run_prototype.sh               # Execution script
+├── README.md                      # This file
+├── docs/                          # Documentation
+│   ├── README.md                  # Documentation index
+│   ├── automated-cron-analysis-system-design.md
+│   ├── complete-prototype-overview.md
+│   ├── current-analysis-summary.md
+│   ├── initial-pr-review-analysis.md
+│   ├── progress-visuals-corpus.md
+│   ├── proposed-needs.md
+│   └── visual-timeline-proposals.md
+├── logs/                          # Analysis reports and logs
 │   ├── prototype-run-YYYYMMDD-HHMMSS.md
 │   └── prototype.log
-├── review_logging/
-│   ├── visualizations/              # Generated Mermaid files
-│   │   ├── pr-timeline.mmd
-│   │   ├── agent-workflow-gantt.mmd
-│   │   └── pain-points-flowchart.mmd
-│   ├── rendered/                   # SVG/PNG outputs (if mmdc available)
-│   └── summaries/                 # Executive summaries
-└── config.yaml                    # System configuration
+└── review_logging/
+    ├── visualizations/            # Generated Mermaid files
+    │   ├── pr-timeline.mmd
+    │   ├── agent-workflow-gantt.mmd
+    │   └── pain-points-flowchart.mmd
+    ├── rendered/                  # SVG/PNG outputs (if mmdc available)
+    └── summaries/                 # Executive summaries
 ```
 
 ## Sample Output
@@ -268,6 +287,16 @@ export GOOGLE_SEARCH_KEY="your_google_search_key"
 error_handling:
   log_level: "DEBUG"
 ```
+
+## Documentation
+
+Comprehensive documentation is available in the [`docs/`](docs/) directory:
+
+- **[Documentation Index](docs/README.md)** - Complete guide to all documentation
+- **Architecture & Design** - System design and implementation details
+- **Analysis Guides** - PR review and analysis methodologies
+- **Visualization Specs** - Mermaid diagram templates and examples
+- **Requirements** - Feature proposals and system needs
 
 ## Contributing
 
