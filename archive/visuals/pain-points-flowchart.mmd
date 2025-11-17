@@ -1,0 +1,38 @@
+flowchart TD
+    start([Analyzed Repositories])
+    start --> ActuarialKnowledge[ActuarialKnowledge]
+    ActuarialKnowledge --> ActuarialKnowledge_ci_inconsistency[Ci Inconsistency]
+    class ActuarialKnowledge_ci_inconsistency critical;
+    ActuarialKnowledge --> ActuarialKnowledge_merge_conflicts[Merge Conflicts]
+    class ActuarialKnowledge_merge_conflicts warning;
+    start --> uimermaidvisualizer[ui-mermaid-visualizer]
+    uimermaidvisualizer --> uimermaidvisualizer_ci_inconsistency[Ci Inconsistency]
+    class uimermaidvisualizer_ci_inconsistency critical;
+    uimermaidvisualizer --> uimermaidvisualizer_merge_conflicts[Merge Conflicts]
+    class uimermaidvisualizer_merge_conflicts warning;
+    start --> ColdVox[ColdVox]
+    ColdVox --> ColdVox_ci_inconsistency[Ci Inconsistency]
+    class ColdVox_ci_inconsistency critical;
+    ColdVox --> ColdVox_merge_conflicts[Merge Conflicts]
+    class ColdVox_merge_conflicts warning;
+    start --> Comfyuimodelmanagementdashboard[Comfyuimodelmanagementdashboard]
+    Comfyuimodelmanagementdashboard --> Comfyuimodelmanagementdashboard_ci_inconsistency[Ci Inconsistency]
+    class Comfyuimodelmanagementdashboard_ci_inconsistency critical;
+    Comfyuimodelmanagementdashboard --> Comfyuimodelmanagementdashboard_merge_conflicts[Merge Conflicts]
+    class Comfyuimodelmanagementdashboard_merge_conflicts warning;
+    start --> TabStorm[TabStorm]
+    TabStorm --> TabStorm_ci_inconsistency[Ci Inconsistency]
+    class TabStorm_ci_inconsistency critical;
+    TabStorm --> TabStorm_merge_conflicts[Merge Conflicts]
+    class TabStorm_merge_conflicts warning;
+    start --> colossus[colossus]
+    colossus --> colossus_ci_inconsistency[Ci Inconsistency]
+    class colossus_ci_inconsistency critical;
+    colossus --> colossus_merge_conflicts[Merge Conflicts]
+    class colossus_merge_conflicts warning;
+    start --> uijulescontrolroom[ui-jules-control-room]
+    uijulescontrolroom --> uijulescontrolroom_ci_inconsistency[Ci Inconsistency]
+    class uijulescontrolroom_ci_inconsistency critical;
+    classDef critical fill:#ffebee,stroke:#c62828,stroke-width:1px;
+    classDef warning fill:#fff3e0,stroke:#f57c00,stroke-width:1px;
+    classDef info fill:#e1f5fe,stroke:#0277bd,stroke-width:1px;
