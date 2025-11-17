@@ -20,6 +20,11 @@ This folder contains comprehensive documentation for the Agentic Repository Anal
 ## Planning & Requirements
 
 - **[Proposed Needs](proposed-needs.md)** - Feature requests and system requirements
+- **[Unified Decisions](UNIFIED-DECISIONS.md)** - Architecture decision records and system design choices
+
+## Security & Configuration
+
+- **[Bitwarden Secrets Integration](Bitwarden-Secrets-Integration.md)** - Secure secrets management with Bitwarden Secrets Manager
 
 ## Quick Links
 

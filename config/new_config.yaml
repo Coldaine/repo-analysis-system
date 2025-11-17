@@ -1,0 +1,111 @@
+# Repository Analysis System - v2.0 Configuration
+
+version: "2.0"
+
+# Database configuration (PostgreSQL on Zo personal workstation)
+database:
+  type: postgresql
+  host: localhost
+  port: 5432
+  name: repo_analysis
+  user: postgres
+  password: changeme
+  pool_size: 10
+  max_overflow: 20
+  echo: false
+
+# API Keys (environment variables recommended)
+api_keys:
+  github_token: "${GITHUB_TOKEN}"
+  glm_api_key: "${GLM_API_KEY}"
+  minimax_api_key: "${MINIMAX_API_KEY}"
+  google_search_key: "${GOOGLE_SEARCH_KEY}"
+
+# Model endpoints/models
+models:
+  glm_4_6:
+    base_url: "https://open.bigmodel.cn/api/paas/v4/"
+    model: "glm-4.6"
+    max_tokens: 4000
+    temperature: 0.3
+  minimax:
+    base_url: "https://api.minimax.chat/v1/"
+    model: "abab6.5s-chat"
+    max_tokens: 2000
+    temperature: 0.2
+  ollama:
+    base_url: "http://localhost:11434/v1/"
+    model: "llama2"
+    max_tokens: 2000
+    temperature: 0.1
+
+# Repository targeting
+repositories:
+  workspace_path: "e:/_projectsGithub"
+  default_owner: "${GITHUB_OWNER}"
+  github_api_base: "https://api.github.com"
+  max_pull_requests: 10
+  target_repos: []
+  analysis_filters:
+    days_since_last_commit: 30
+    min_pr_count: 1
+    include_forks: false
+  batch_size: 10
+  concurrent_limit: 5
+
+# Orchestration controls
+orchestration:
+  langgraph:
+    max_concurrent_runs: 5
+    timeout_seconds: 3600
+    retry_attempts: 3
+    retry_delay: 300
+  scheduling:
+    default_type: webhook
+    fallback_cron: "0 */6 * * *"
+    timezone: UTC
+    dormancy_audit_minutes: 30
+
+# Agents configuration
+agents:
+  data_collection:
+    timeout: 300
+    batch_size: 10
+  pain_point_analyzer:
+    primary_model: "glm_4_6"
+    fallback_model: "minimax"
+    confidence_threshold: 0.7
+  search_agent:
+    search_provider: "duckduckgo"
+    max_results: 10
+    timeout: 60
+  visualization_agent:
+    output_format: "mermaid"
+    max_diagrams: 5
+    render_svg: true
+  output_agent:
+    output_directory: "review_logging"
+    file_prefix: "analysis-run"
+    generate_markdown: true
+    generate_json: false
+
+# Visualization preset
+visualizations:
+  types: ["timeline", "gantt", "flowchart", "sequence", "xychart"]
+  limits:
+    max_nodes: 20
+    max_events_per_timeline: 7
+    max_concurrent_tasks: 12
+
+# Monitoring and logging
+monitoring:
+  metrics_enabled: true
+  health_check_interval: 60
+  performance_tracking: true
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/system.log"
+  max_size: "10MB"
+  backup_count: 5
