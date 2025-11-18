@@ -69,7 +69,7 @@ class Baseline(Base):
     repo_id = Column(Integer, ForeignKey('repositories.id', ondelete='CASCADE'))
     goals = Column(JSONB, nullable=False)
     phases = Column(JSONB, nullable=False)
-    metadata = Column(JSONB)
+    extra_metadata = Column(JSONB)
     hash = Column(String(64), unique=True, nullable=False)
     is_active = Column(Boolean, default=True)
     created_by = Column(Integer, ForeignKey('users.id'))
@@ -123,7 +123,7 @@ class PullRequest(Base):
     additions = Column(Integer)
     deletions = Column(Integer)
     changed_files = Column(Integer)
-    metadata = Column(JSONB)
+    extra_metadata = Column(JSONB)
     
     # Relationships
     run = relationship("AnalysisRun", back_populates="pull_requests")
@@ -176,7 +176,7 @@ class Visualization(Base):
     description = Column(Text)
     mermaid_code = Column(Text)
     file_path = Column(String(500))
-    metadata = Column(JSONB)
+    extra_metadata = Column(JSONB)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     
     # Relationships
@@ -441,7 +441,7 @@ class StorageAdapter:
     # Visualization Management
     def create_visualization(self, run_id: int, viz_type: str, title: str = None,
                           description: str = None, mermaid_code: str = None,
-                          file_path: str = None, metadata: Dict = None) -> Optional[Visualization]:
+                          file_path: str = None, extra_metadata: Dict = None) -> Optional[Visualization]:
         """Create a new visualization"""
         with self.get_session() as session:
             visualization = Visualization(
@@ -451,7 +451,7 @@ class StorageAdapter:
                 description=description,
                 mermaid_code=mermaid_code,
                 file_path=file_path,
-                metadata=metadata
+                extra_metadata=extra_metadata
             )
             session.add(visualization)
             session.flush()
