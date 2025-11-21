@@ -16,9 +16,7 @@ from typing import List, Dict, Any, Optional
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from orchestration.graph import RepositoryAnalysisGraph
-from storage.adapter import create_storage_adapter
-from models.model_manager import ModelManager
+from repo_manager import RepoManager
 from utils.config import ConfigLoader
 from utils.logging import setup_logging
 
@@ -55,6 +53,7 @@ class GraphRunner:
         logger.info("Initializing repository analysis system")
         
         # Initialize storage adapter
+        from storage.adapter import create_storage_adapter
         db_config = self.config.get('database', {})
         self.storage = create_storage_adapter(db_config)
         
@@ -64,6 +63,7 @@ class GraphRunner:
             logger.warning(f"Storage health check failed: {health}")
         
         # Initialize graph
+        from orchestration.graph import RepositoryAnalysisGraph
         self.graph = RepositoryAnalysisGraph(self.config, self.storage)
         
         logger.info("System initialized successfully")
@@ -179,6 +179,11 @@ async def main():
         default='full',
         help='Type of analysis run'
     )
+    analyze_parser.add_argument(
+        '--enable-pr-review',
+        action='store_true',
+        help='Enable PR review for this run'
+    )
     
     # Health check command
     health_parser = subparsers.add_parser(
@@ -190,6 +195,15 @@ async def main():
     stats_parser = subparsers.add_parser(
         'stats',
         help='Get system statistics'
+    )
+
+    # Sync command
+    sync_parser = subparsers.add_parser(
+        'sync',
+        help='Sync configured repositories locally'
+    )
+    sync_parser.add_argument(
+        '--repos', '-r', nargs='*', help='Repositories to sync (default: config target_repos)'
     )
     
     # Migration command
@@ -206,9 +220,9 @@ async def main():
     args = parser.parse_args()
     
     # Setup logging
-    log_level = logging.INFO
+    log_level = 'INFO'
     if hasattr(args, 'verbose') and args.verbose:
-        log_level = logging.DEBUG
+        log_level = 'DEBUG'
     
     setup_logging(level=log_level)
     
@@ -221,7 +235,11 @@ async def main():
             repos = getattr(args, 'repos', None)
             user_id = getattr(args, 'user_id', None)
             run_type = getattr(args, 'run_type', 'full')
+            enable_pr = getattr(args, 'enable_pr_review', False)
             
+            if enable_pr:
+                runner.config.setdefault('agents', {}).setdefault('pr_review', {})['enabled'] = True
+
             result = await runner.run_analysis(
                 repos=repos,
                 user_id=user_id,
@@ -272,6 +290,20 @@ async def main():
                             for key, value in stats['stats'].items():
                                 print(f"    {key}: {value}")
         
+        elif args.command == 'sync':
+            # Sync repositories locally
+            cfg_path = getattr(args, 'config', 'config/new_config.yaml')
+            cfg = ConfigLoader().load_config(cfg_path)
+            repos = getattr(args, 'repos', None) or cfg.get('repositories', {}).get('target_repos', [])
+            manager = RepoManager(cfg)
+            result = manager.sync(repos)
+            print(json.dumps({
+                'synced': result.synced,
+                'cloned': result.cloned,
+                'updated': result.updated,
+                'failed': result.failed,
+                'details_path': result.details_path
+            }, indent=2))
         elif args.command == 'migrate':
             # Configuration migration
             from config.migration import ConfigMigrator

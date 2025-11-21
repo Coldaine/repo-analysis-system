@@ -44,7 +44,7 @@ class OutputAgent:
         self.storage = storage
         self.model_manager = model_manager
         
-        output_config = config.get('output', {})
+        output_config = config.get('agents', {}).get('output_agent', {})
         self.output_config = OutputConfig(
             output_directory=output_config.get('output_directory', 'review_logging'),
             file_prefix=output_config.get('file_prefix', 'analysis-run'),
@@ -58,10 +58,30 @@ class OutputAgent:
         self.output_dir = Path(self.output_config.output_directory)
         self.viz_dir = self.output_dir / "visualizations"
         self.reports_dir = self.output_dir / "summaries"
+        self.agent_logs_root = self.output_dir
         
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.viz_dir.mkdir(parents=True, exist_ok=True)
         self.reports_dir.mkdir(parents=True, exist_ok=True)
+        
+    def write_agent_log(self, agent_name: str, repo_name: str, content: str, 
+                        timestamp: Optional[datetime] = None, json_payload: Dict[str, Any] = None) -> str:
+        """Write per-agent, per-run log files under review_logging/<agent>/<YYYY-MM-DD>/"""
+        ts = timestamp or datetime.now(timezone.utc)
+        date_dir = ts.strftime('%Y-%m-%d')
+        stamp = ts.strftime('%Y%m%d_%H%M%S')
+        safe_repo = repo_name.replace('/', '__')
+        agent_dir = self.agent_logs_root / agent_name / date_dir
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        md_path = agent_dir / f"{stamp}__{safe_repo}.md"
+        with open(md_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        if json_payload is not None:
+            json_path = agent_dir / f"{stamp}__{safe_repo}.json"
+            with open(json_path, 'w', encoding='utf-8') as jf:
+                json.dump(json_payload, jf, indent=2)
+        logger.info(f"Wrote agent log: {md_path}")
+        return str(md_path)
     
     def generate_analysis_report(
         self,

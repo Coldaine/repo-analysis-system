@@ -76,12 +76,8 @@ class ConfigLoader:
             if db_config.get('type') != 'postgresql':
                 warnings.append("Only PostgreSQL is supported in this version")
         
-        # Validate API keys
-        if 'api_keys' in config:
-            api_keys = config['api_keys']
-            for key, value in api_keys.items():
-                if not value or value.startswith('${'):
-                    warnings.append(f"API key '{key}' may be missing or unset")
+        # API keys: reduce noise; do not warn globally here
+        # Model-specific checks will occur at call time
         
         # Validate models
         if 'models' in config:
@@ -120,14 +116,17 @@ class ConfigLoader:
         return config.get('models', {})
     
     def get_api_keys(self, config: Dict[str, Any]) -> Dict[str, str]:
-        """Get API keys with environment variable fallback"""
-        api_keys = config.get('api_keys', {})
-        
-        # Check environment variables for missing keys
-        env_keys = ['GITHUB_TOKEN', 'GLM_API_KEY', 'MINIMAX_API_KEY', 'GOOGLE_SEARCH_KEY']
-        for env_key in env_keys:
-            config_key = env_key.lower().replace('_key', '_api_key')
-            if config_key not in api_keys and os.getenv(env_key):
-                api_keys[config_key] = os.getenv(env_key)
-        
+        """Get API keys with environment variable fallback (explicit mapping)"""
+        api_keys = dict(config.get('api_keys', {}))
+        mapping = {
+            'GITHUB_TOKEN': 'github_token',
+            'GLM_API_KEY': 'glm_api_key',
+            'MINIMAX_API_KEY': 'minimax_api_key',
+            'OPENROUTER_API_KEY': 'openrouter_api_key',
+            'GOOGLE_SEARCH_KEY': 'google_search_key',
+        }
+        for env_name, cfg_key in mapping.items():
+            val = os.getenv(env_name)
+            if val and not api_keys.get(cfg_key):
+                api_keys[cfg_key] = val
         return api_keys

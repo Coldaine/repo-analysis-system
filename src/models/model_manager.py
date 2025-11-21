@@ -62,18 +62,15 @@ class ModelManager:
         return parsed
     
     def _parse_api_keys(self, api_keys_config: Dict) -> Dict[str, str]:
-        """Parse and validate API keys"""
-        parsed = {}
-        for key, value in api_keys_config.items():
-            # Check environment variables first
-            env_value = os.getenv(key.upper())
-            if env_value:
-                parsed[key] = env_value
-            elif value and not value.startswith('${'):
-                parsed[key] = value
-            else:
-                logger.warning(f"Missing API key for {key}")
-        return parsed
+        """Parse API keys using explicit provider mapping and env fallback"""
+        # Accept both provider-named keys and env vars mapped in ConfigLoader
+        merged = dict(api_keys_config)
+        # Merge env if present (pre-expanded by ConfigLoader)
+        for env_key in ['github_token','glm_api_key','minimax_api_key','openrouter_api_key','google_search_key']:
+            val = os.getenv(env_key.upper())
+            if val and not merged.get(env_key):
+                merged[env_key] = val
+        return merged
     
     def get_available_models(self) -> List[str]:
         """Get list of available models"""
@@ -81,7 +78,13 @@ class ModelManager:
     
     def is_model_available(self, model_name: str) -> bool:
         """Check if a model is available"""
-        return model_name in self.models and model_name in self.api_keys
+        if model_name == 'ollama':
+            return model_name in self.models
+        if model_name == 'glm_4_6':
+            return model_name in self.models and bool(self.api_keys.get('glm_api_key'))
+        if model_name == 'minimax':
+            return model_name in self.models and bool(self.api_keys.get('minimax_api_key') or self.api_keys.get('openrouter_api_key'))
+        return model_name in self.models
     
     def call_model(self, model_name: str, prompt: str, data: Dict = None, 
                   fallback_models: List[str] = None) -> ModelResponse:
@@ -113,8 +116,16 @@ class ModelManager:
         if not model_config:
             raise ValueError(f"Model configuration missing for {model_name}")
         
-        api_key = self.api_keys.get(model_name)
-        if not api_key:
+        api_key = None
+        if model_name == 'glm_4_6':
+            api_key = self.api_keys.get('glm_api_key')
+        elif model_name == 'minimax':
+            api_key = self.api_keys.get('minimax_api_key') or self.api_keys.get('openrouter_api_key')
+        elif model_name == 'ollama':
+            api_key = None
+        else:
+            api_key = self.api_keys.get(model_name)
+        if model_name != 'ollama' and not api_key:
             raise ValueError(f"API key missing for {model_name}")
         
         # Route to specific model implementation
@@ -166,10 +177,9 @@ class ModelManager:
         if data:
             payload["data"] = data
         
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}"
-        }
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
         
         response = self._make_request("POST", url, headers, payload, config.timeout, config.retries)
         return self._parse_response(response, "minimax")

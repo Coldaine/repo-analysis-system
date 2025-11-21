@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-def setup_logging(level: str = "INFO", log_file: Optional[str] = None, 
+def setup_logging(level: str | int = "INFO", log_file: Optional[str] = None, 
                  log_format: Optional[str] = None) -> None:
     """Setup enhanced logging configuration"""
     
@@ -26,8 +26,15 @@ def setup_logging(level: str = "INFO", log_file: Optional[str] = None,
         log_path.parent.mkdir(parents=True, exist_ok=True)
     
     # Configure root logger
+    resolved_level = level
+    if isinstance(level, str):
+        resolved_level = getattr(logging, level.upper(), logging.INFO)
+    elif isinstance(level, int):
+        resolved_level = level
+    else:
+        resolved_level = logging.INFO
     logging.basicConfig(
-        level=getattr(logging, level.upper(), logging.INFO),
+        level=resolved_level,
         format=log_format,
         handlers=[
             logging.FileHandler(log_path),
@@ -47,7 +54,7 @@ def setup_logging(level: str = "INFO", log_file: Optional[str] = None,
     
     # Configure component-specific loggers
     for name, logger in loggers.items():
-        logger.setLevel(getattr(logging, level.upper(), logging.INFO))
+        logger.setLevel(resolved_level)
     
     # Add console colors for different levels
     if sys.stdout.isatty():
@@ -77,6 +84,6 @@ def setup_logging(level: str = "INFO", log_file: Optional[str] = None,
     
     # Log initialization
     main_logger = logging.getLogger(__name__)
-    main_logger.info(f"Logging initialized at level: {level}")
+    main_logger.info(f"Logging initialized at level: {resolved_level}")
     if log_file:
         main_logger.info(f"Log file: {log_path}")
