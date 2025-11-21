@@ -8,6 +8,25 @@ api_keys:
   minimax_api_key: "${MINIMAX_API_KEY}"  # MiniMax API key for lightweight tasks
   google_search_key: "${GOOGLE_SEARCH_KEY}"  # Google Custom Search API key
 
+# Database Configuration (added for validation compliance)
+database:
+  type: postgresql
+  host: "${DB_HOST}"
+  port: "${DB_PORT}"
+  name: "${DB_NAME}"
+  user: "${DB_USER}"
+  password: "${DB_PASSWORD}"
+  pool_size: 10
+  max_overflow: 20
+  echo: false
+
+# Orchestration Configuration (LangGraph runtime parameters)
+orchestration:
+  langgraph:
+    max_concurrent_runs: 5
+    timeout_seconds: 3600
+    retry_attempts: 3
+
 # Model Endpoints
 models:
   glm_4_6:

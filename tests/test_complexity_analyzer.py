@@ -62,6 +62,11 @@ def complex_function(x):
                 if x > 30:
                     if x > 40:
                         if x > 50:
+                            if x > 60:
+                                if x > 70:
+                                    if x > 80:
+                                        if x > 90:
+                                            return "very very high"
                             return "very high"
                         return "high"
                     return "medium-high"
@@ -183,7 +188,12 @@ def hotspot1(x):
             if x > 20:
                 if x > 30:
                     if x > 40:
-                        return "hotspot"
+                        if x > 50:
+                            if x > 60:
+                                if x > 70:
+                                    if x > 80:
+                                        if x > 90:
+                                            return "hotspot"
     return "normal"
 
 def hotspot2(y):
@@ -193,7 +203,12 @@ def hotspot2(y):
                 if y > 3:
                     if y > 4:
                         if y > 5:
-                            return "bigger hotspot"
+                            if y > 6:
+                                if y > 7:
+                                    if y > 8:
+                                        if y > 9:
+                                            if y > 10:
+                                                return "bigger hotspot"
     return "normal"
 
 def simple():

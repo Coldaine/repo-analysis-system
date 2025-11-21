@@ -41,7 +41,7 @@ models:
 
 # Repository targeting
 repositories:
-  workspace_path: "e:/_projectsGithub"
+  workspace_path: "workspace/repos"
   default_owner: "${GITHUB_OWNER}"
   github_api_base: "https://api.github.com"
   max_pull_requests: 10
@@ -88,6 +88,10 @@ agents:
     file_prefix: "analysis-run"
     generate_markdown: true
     generate_json: false
+  pr_review:
+    enabled: false
+    enable_github_commenting: false
+    max_prs_per_repo: 10
 
 # Visualization preset
 visualizations:

@@ -118,6 +118,20 @@ export DB_PORT=5432
 export DB_NAME=repo_analysis
 export DB_USER=postgres
 export DB_PASSWORD=your_secure_password
+
+# Automatic Environment Variable: EVNV
+The loader now auto-assigns an environment variable `EVNV` if it is not already set.
+
+Behavior:
+- If `EVNV` is unset but `ENV` is set, it mirrors `ENV`.
+- Otherwise it defaults to `development`.
+- The resolved value is also exposed at `config['environment']['evnv']` after loading.
+
+You can override manually:
+```bash
+export EVNV=staging
+```
+This value is useful in logs, multi-environment deployments, and downstream agents that need a stable environment identifier.
 ```
 
 ### 3. Run Analysis
