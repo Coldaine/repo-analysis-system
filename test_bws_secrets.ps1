@@ -6,12 +6,10 @@ Write-Host "========================================`n" -ForegroundColor Cyan
 # Check which secrets are available
 $secretsFound = @()
 $secretsExpected = @(
-    "Z_AI_API_KEY",
-    "OPENAI_API_KEY_1",
-    "GROQ_API_KEY",
-    "PERPLEXITY_API_KEY",
-    "EXA_API_KEY",
-    "GITHUB_TOKEN"
+    "GITHUB_TOKEN",
+    "GLM_API_KEY",
+    "MINIMAX_API_KEY",
+    "GITHUB_OWNER"
 )
 
 foreach ($secretName in $secretsExpected) {

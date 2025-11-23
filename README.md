@@ -106,7 +106,7 @@ All API keys and secrets are managed securely using [Bitwarden Secrets Manager](
 
 **Setup:**
 
-```bash
+```powershell
 # Install bws CLI (if not already installed)
 # Download from: https://github.com/bitwarden/sdk/releases
 

@@ -112,7 +112,7 @@ Run the following to confirm you can see secrets from multiple projects:
 bws run -- env
 ```
 
-#### Step 1.4: Secure Token Storage (Windows)
+#### Step 1.5: Secure Token Storage (Windows)
 ```powershell
 # Create secure directory
 New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.bws"
@@ -200,8 +200,8 @@ Update crontab to use `bws run`:
 # Edit crontab
 crontab -e
 
-# Add (every 6 hours with Bitwarden secrets)
-0 */6 * * * export BWS_ACCESS_TOKEN=$(cat ~/.bws/repo-analysis-token.txt) && cd /path/to/repo-analysis-system && /usr/local/bin/bws run -- python agentic_prototype.py >> logs/cron.log 2>&1
+# Add (recurring run with Bitwarden secrets)
+<cron cadence> export BWS_ACCESS_TOKEN=$(cat ~/.bws/repo-analysis-token.txt) && cd /path/to/repo-analysis-system && /usr/local/bin/bws run -- python agentic_prototype.py >> logs/cron.log 2>&1
 ```
 
 #### Option B: Systemd Service (Recommended for Linux)
@@ -229,12 +229,12 @@ Create `/etc/systemd/system/repo-analysis.timer`:
 
 ```ini
 [Unit]
-Description=Run Repository Analysis every 6 hours
+Description=Run Repository Analysis on a recurring cadence
 Requires=repo-analysis.service
 
 [Timer]
 OnBootSec=15min
-OnUnitActiveSec=6h
+OnUnitActiveSec=<cadence>
 Unit=repo-analysis.service
 
 [Install]
