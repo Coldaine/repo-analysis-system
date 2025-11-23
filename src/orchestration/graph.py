@@ -9,25 +9,22 @@ from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
 
-try:
-    from langgraph.graph import StateGraph, START, END
-    from langgraph.checkpoint.memory import MemorySaver
-except ImportError:
-    # Fallback for environments without LangGraph
-    StateGraph = None
-    START = "START"
-    END = "END"
-    MemorySaver = None
+from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
 
 from storage.adapter import StorageAdapter, AnalysisRun, Repository, User
+from repo_manager import RepoManager, SyncResult
 from agents.data_collection import DataCollectionAgent
 from models.model_manager import ModelManager
 from agents.visualization import VisualizationAgent
 from agents.output import OutputAgent
 from agents.complexity_agent import ComplexityAgent
 from agents.security_agent import SecurityAgent
+from agents.pr_review import PRReviewAgent
+from utils.logging import get_logger, correlation_id, timer_decorator, correlation_context
 
-logger = logging.getLogger(__name__)
+# Replace standard logging with enhanced structured logging
+logger = get_logger(__name__)
 
 @dataclass
 class GraphState:
@@ -69,6 +66,7 @@ class RepositoryAnalysisGraph:
         self.output_agent = OutputAgent(config, storage, self.model_manager)
         self.complexity_agent = ComplexityAgent(storage=storage)
         self.security_agent = SecurityAgent(storage=storage)
+        self.pr_agent = PRReviewAgent(config, storage, self.model_manager, self.output_agent)
 
         # Graph configuration
         self.graph_config = config.get('orchestration', {}).get('langgraph', {})
@@ -76,12 +74,11 @@ class RepositoryAnalysisGraph:
         self.timeout_seconds = self.graph_config.get('timeout_seconds', 3600)
         self.retry_attempts = self.graph_config.get('retry_attempts', 3)
 
-        # Initialize LangGraph if available
-        if StateGraph:
-            self.graph = self._build_langgraph()
-        else:
-            logger.warning("LangGraph not available, using fallback orchestration")
-            self.graph = None
+        # Initialize LangGraph
+        self.graph = self._build_langgraph()
+
+        # Initialize repo manager
+        self.repo_manager = RepoManager(self.config)
     
     def _build_langgraph(self) -> Optional[StateGraph]:
         """Build the LangGraph workflow"""
@@ -93,24 +90,29 @@ class RepositoryAnalysisGraph:
         
         # Add nodes
         workflow.add_node("initialize", self._initialize_analysis)
+        workflow.add_node("sync_repositories", self._sync_repositories)
         workflow.add_node("detect_changes", self._detect_changes)
         workflow.add_node("collect_data", self._collect_repository_data)
         workflow.add_node("analyze_complexity", self._analyze_complexity)
         workflow.add_node("analyze_security", self._analyze_security)
         workflow.add_node("analyze_repositories", self._analyze_repositories)
         workflow.add_node("generate_visualizations", self._generate_visualizations)
+        workflow.add_node("review_pull_requests", self._review_pull_requests)
         workflow.add_node("generate_report", self._generate_report)
         workflow.add_node("finalize", self._finalize_analysis)
 
         # Add edges
         workflow.add_edge(START, "initialize")
-        workflow.add_edge("initialize", "detect_changes")
+        workflow.add_edge("initialize", "sync_repositories")
+        workflow.add_edge("sync_repositories", "detect_changes")
         workflow.add_edge("detect_changes", "collect_data")
         workflow.add_edge("collect_data", "analyze_complexity")
         workflow.add_edge("analyze_complexity", "analyze_security")
         workflow.add_edge("analyze_security", "analyze_repositories")
         workflow.add_edge("analyze_repositories", "generate_visualizations")
+        workflow.add_edge("generate_visualizations", "review_pull_requests")
         workflow.add_edge("generate_visualizations", "generate_report")
+        workflow.add_edge("review_pull_requests", "generate_report")
         workflow.add_edge("generate_report", "finalize")
         workflow.add_edge("finalize", END)
         
@@ -133,8 +135,7 @@ class RepositoryAnalysisGraph:
         """Run the complete analysis workflow"""
         logger.info(f"Starting analysis for {len(repos)} repositories")
         
-        if not self.graph:
-            return self._run_fallback_orchestration(repos, user_id, run_type)
+        # Graph must be available; run
         
         # Initialize state
         initial_state = GraphState(
@@ -159,12 +160,12 @@ class RepositoryAnalysisGraph:
                 "error": str(e),
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
-    
+
     async def _run_fallback_orchestration(self, repos: List[str], user_id: int = None,
                                    run_type: str = 'full') -> Dict[str, Any]:
         """Fallback orchestration without LangGraph"""
         logger.info("Running fallback orchestration")
-        
+
         try:
             # Step 1: Initialize
             state = GraphState(
@@ -173,31 +174,31 @@ class RepositoryAnalysisGraph:
                 run_type=run_type,
                 current_step="initialization"
             )
-            
+
             # Step 2: Detect changes (simplified)
             state = await self._detect_changes(state)
-            
+
             # Step 3: Collect data
             state = await self._collect_repository_data(state)
-            
+
             # Step 4: Analyze repositories
             state = await self._analyze_repositories(state)
-            
+
             # Step 5: Generate visualizations
             state = await self._generate_visualizations(state)
-            
+
             # Step 6: Generate report
             state = await self._generate_report(state)
-            
+
             # Step 7: Finalize
             state = await self._finalize_analysis(state)
-            
+
             return {
                 "status": "completed",
                 "state": state,
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
-            
+
         except Exception as e:
             logger.error(f"Fallback orchestration failed: {e}")
             return {
@@ -205,7 +206,7 @@ class RepositoryAnalysisGraph:
                 "error": str(e),
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
-    
+
     async def _initialize_analysis(self, state: GraphState) -> GraphState:
         """Initialize the analysis workflow"""
         logger.info("Step: Initialize analysis")
@@ -225,6 +226,27 @@ class RepositoryAnalysisGraph:
             
         except Exception as e:
             state.errors.append(f"Failed to create analysis run: {e}")
+        
+        return state
+
+    async def _sync_repositories(self, state: GraphState) -> GraphState:
+        """Ensure local mirrors are synced for configured repositories"""
+        logger.info("Step: Sync repositories")
+        state.current_step = "sync_repositories"
+        
+        try:
+            sync_result: SyncResult = self.repo_manager.sync(state.repos)
+            state.metrics['sync'] = {
+                'synced': sync_result.synced,
+                'cloned': sync_result.cloned,
+                'updated': sync_result.updated,
+                'failed': sync_result.failed,
+                'details_path': sync_result.details_path
+            }
+            logger.info(f"Repositories synced: {sync_result.synced} (cloned {sync_result.cloned}, updated {sync_result.updated})")
+        except Exception as e:
+            state.errors.append(f"Repository sync failed: {e}")
+            logger.error(f"Repository sync failed: {e}")
         
         return state
     
@@ -390,6 +412,23 @@ class RepositoryAnalysisGraph:
                 }
                 
                 logger.info(f"Analyzed repository {repo_key}")
+
+                # Write per-agent log for analysis results
+                lines = [
+                    f"Agent: structure_architecture",
+                    f"Repository: {repo_key}",
+                    f"Timestamp: {datetime.now(timezone.utc).isoformat()}",
+                    "",
+                    f"Model: {repo_result['analysis_results']['model_used']} (confidence {repo_result['analysis_results']['confidence']:.2f})",
+                    "",
+                    "Identified Pain Points:",
+                ]
+                for p in repo_result['analysis_results']['pain_points']:
+                    lines.append(f"- {p.get('type','unknown')} (severity {p.get('severity','?')}) - {p.get('description','')}")
+                content = "\n".join(lines)
+                self.output_agent.write_agent_log('structure_architecture', repo_key, content, json_payload={
+                    'analysis_results': repo_result['analysis_results']
+                })
             
         except Exception as e:
             state.errors.append(f"Repository analysis failed: {e}")
@@ -425,6 +464,29 @@ class RepositoryAnalysisGraph:
                 
                 repo_result['visualizations'] = viz_results
                 logger.info(f"Generated {len(viz_results)} visualizations for {repo_key}")
+
+                # Write per-agent log for visualization outputs
+                lines = [
+                    f"Agent: visualization",
+                    f"Repository: {repo_key}",
+                    f"Timestamp: {datetime.now(timezone.utc).isoformat()}",
+                    "",
+                    "Generated Visualizations:",
+                ]
+                for v in viz_results:
+                    lines.append(f"- {v.type}: {v.title} -> {v.filename}")
+                content = "\n".join(lines)
+                self.output_agent.write_agent_log('visualization', repo_key, content, json_payload={
+                    'visualizations': [
+                        {
+                            'type': v.type,
+                            'title': v.title,
+                            'filename': v.filename,
+                            'quality_score': v.quality_score,
+                            'approved': v.approved
+                        } for v in viz_results
+                    ]
+                })
             
         except Exception as e:
             state.errors.append(f"Visualization generation failed: {e}")
@@ -492,6 +554,26 @@ class RepositoryAnalysisGraph:
         except Exception as e:
             state.errors.append(f"Report generation failed: {e}")
         
+        return state
+
+    async def _review_pull_requests(self, state: GraphState) -> GraphState:
+        """Run programmatic PR reviews when enabled"""
+        logger.info("Step: Review pull requests")
+        state.current_step = "review_pull_requests"
+        try:
+            analysis_run_id = state.metrics.get('analysis_run_id')
+            if not getattr(self.pr_agent, 'enabled', False):
+                logger.info("PR review disabled; skipping")
+                return state
+            for repo_key, repo_result in state.per_repo_results.items():
+                parts = repo_key.split('/')
+                if len(parts) != 2:
+                    continue
+                owner, name = parts
+                count = self.pr_agent.review_repo(owner, name, analysis_run_id)
+                logger.info(f"Reviewed {count} open PRs for {repo_key}")
+        except Exception as e:
+            state.errors.append(f"PR review failed: {e}")
         return state
     
     async def _finalize_analysis(self, state: GraphState) -> GraphState:

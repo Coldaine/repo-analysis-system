@@ -108,7 +108,7 @@ class VisualizationAgent:
                     description=result.metadata.get('description', ''),
                     mermaid_code=result.mermaid_code,
                     file_path=result.filename,
-                    metadata=result.metadata
+                    extra_metadata=result.metadata
                 )
                 logger.info(f"Stored visualization: {result.type} - {result.title}")
                 return viz
