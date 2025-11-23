@@ -3,6 +3,7 @@ LangGraph Orchestrator
 Enhanced graph-based orchestration for repository analysis with LangGraph integration
 """
 
+import os
 import logging
 from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
@@ -159,7 +160,7 @@ class RepositoryAnalysisGraph:
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
     
-    def _run_fallback_orchestration(self, repos: List[str], user_id: int = None, 
+    async def _run_fallback_orchestration(self, repos: List[str], user_id: int = None,
                                    run_type: str = 'full') -> Dict[str, Any]:
         """Fallback orchestration without LangGraph"""
         logger.info("Running fallback orchestration")
