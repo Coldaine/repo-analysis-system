@@ -76,8 +76,12 @@ Agents are not just prompts; they are **Tool Users** with specific roles.
 -   **PostgreSQL**: The primary source of truth.
     -   Stores: Baselines, Analysis Runs, Metrics, Graph State (Checkpoints).
     -   Schema: Optimized for concurrent writes and JSON-structured data.
+-   **Checkpointer**:
+    -   Use a Postgres-backed checkpointer (e.g., PostgresSaver) for LangGraph state.
+    -   Keep checkpoints lean; avoid large blobs/transient data.
+    -   Support resume/time-travel when rerunning jobs; correlate job IDs to checkpoints.
 -   **Bitwarden Secrets Manager**:
-    -   Injected at runtime via `bws run`.
+    -   Injected at runtime via `bws run` / `bitwarden/sm-action@v1`.
     -   No secrets stored in `.env` or code.
 
 ---
