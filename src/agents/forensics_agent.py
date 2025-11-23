@@ -36,6 +36,9 @@ def git_log(file_path: str, limit: int = 5) -> str:
     """
     Get the commit history for a specific file.
     Returns the commit hash, author, date, and message.
+    
+    Look for pivot keywords in commit messages: "refactor", "architecture", 
+    "rework", "redesign", "big change" - these indicate intentional shifts.
     """
     try:
         cmd = ["git", "log", f"-{limit}", "--format=%h|%an|%ad|%s", "--date=iso", "--", file_path]
@@ -97,6 +100,7 @@ class InvestigatorState(TypedDict):
 def investigator_agent(state: InvestigatorState, runtime: Runtime):
     """
     The brain of the investigator. Decides which tools to call.
+    Uses forensic analysis techniques inspired by PR #4 (@google-labs-jules[bot]).
     """
     if ChatAnthropic is None:
         raise ImportError("langchain_anthropic is required for this agent.")
@@ -108,11 +112,41 @@ def investigator_agent(state: InvestigatorState, runtime: Runtime):
     model_name = "claude-3-5-sonnet-20240620"
     if hasattr(runtime, 'context') and isinstance(runtime.context, dict):
          model_name = runtime.context.get("model_name", model_name)
-         
+    
+    # Enhanced system prompt with forensic analysis framework
+    # Credit: Prompt engineering from PR #4 by @google-labs-jules[bot]
+    system_prompt = """You are a forensic software engineering expert.
+Your task is to determine the "True Intent" behind conflicting documentation or architectural divergence.
+
+When investigating conflicts:
+1. Use git_log to examine commit history for involved files
+2. Use git_diff to compare changes between suspicious commits
+3. Use git_blame to identify line-level authorship
+4. Use read_file to examine current file contents
+
+Analysis Framework (from PR #4):
+- **Recency**: Prioritize newer commits as more likely to represent current intent
+- **Pivot Detection**: Flag commits with keywords like "refactor", "architecture", "rework", "redesign", "big change"
+- **File Specificity**: `/docs/` directory files are typically more authoritative than `README.md`
+- **Intent Signals**: Give more weight to commits with explicit intent messages vs. routine changes
+
+Output Format:
+- Synthesize a clear verdict on what the true intent is
+- Cite specific commits, authors, and dates as evidence
+- Classify divergence as intentional (pivot) or accidental (drift)
+- Recommend actions (update conflicting docs, accept new direction, etc.)
+"""
+    
     model = ChatAnthropic(model=model_name, temperature=0)
     model_with_tools = model.bind_tools(tools)
     
-    return {"messages": [model_with_tools.invoke(state["messages"])]}
+    # Inject system prompt if this is the first message
+    messages = state["messages"]
+    if not any(isinstance(m, BaseMessage) and hasattr(m, 'type') and m.type == 'system' for m in messages):
+        from langchain_core.messages import SystemMessage
+        messages = [SystemMessage(content=system_prompt)] + list(messages)
+    
+    return {"messages": [model_with_tools.invoke(messages)]}
 
 # --- Graph Construction ---
 
