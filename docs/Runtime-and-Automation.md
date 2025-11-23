@@ -26,7 +26,7 @@ Triggered by GitHub events (Push, PR, Issue).
 
 ### 3. Dormant Audit (Cron)
 Runs every 30 minutes to check for repositories that haven't been updated recently but might need a "heartbeat" check or have missed webhooks.
--   **Logic**: Scans for repositories with stale baselines (>X hours).
+-   **Logic**: Scans for repositories whose Repository Charter snapshot is stale (>X hours) or missing.
 -   **Action**: Enqueues jobs only for those needing refresh.
 
 ---
@@ -37,7 +37,7 @@ The system runs on a persistent VM/Container environment (`zo.computer`).
 
 ### Component Stack
 1.  **Runner Service**: A Python/Node.js service that consumes the job queue.
-2.  **PostgreSQL**: Stores state, baselines, and metrics.
+2.  **PostgreSQL**: Stores state, Repository Charters/intent records, and metrics.
 3.  **Redis**: Job queue for incoming webhook events (configurable; must support dedupe/backpressure).
 4.  **Repo Cache**: A persistent disk volume where repositories are cloned and kept in sync.
 

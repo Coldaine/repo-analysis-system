@@ -8,14 +8,14 @@ The **Repository Analysis System** is an intelligent, automated platform for mon
 
 The canonical documentation is located in the `docs/` directory:
 
-1.  [**Overview and Goals**](docs/Overview-and-Goals.md): High-level purpose, goals, and flows.
-2.  [**System Architecture**](docs/System-Architecture.md): Core components, LangGraph design, and execution model.
-3.  [**Agents and Workflows**](docs/Agents-and-Workflows.md): Catalog of agents (Forensics, Security, etc.) and their interactions.
-4.  [**Runtime and Automation**](docs/Runtime-and-Automation.md): How to run the system (CLI, Webhook, Cron).
-5.  [**Configuration and Secrets**](docs/Config-and-Secrets.md): Config schema and Bitwarden setup.
-6.  [**Observability and Reporting**](docs/Observability-and-Reporting.md): Logging, metrics, and report formats.
-7.  [**Implementation Status**](docs/Implementation-Status-and-Roadmap.md): Current feature status and roadmap.
-8.  [**Templates and Examples**](docs/Templates-and-Examples.md): Standard templates for reports and baselines.
+1.  [**Overview and Goals**](docs/project-info/Overview-and-Goals.md): High-level purpose, goals, and flows.
+2.  [**System Architecture**](docs/core-concepts/System-Architecture.md): Core components, LangGraph design, and execution model.
+3.  [**Agents and Workflows**](docs/core-concepts/Agents-and-Workflows.md): Catalog of agents (Forensics, Security, etc.) and their interactions.
+4.  [**Runtime and Automation**](docs/operations/Runtime-and-Automation.md): How to run the system (CLI, Webhook, Cron).
+5.  [**Configuration and Secrets**](docs/operations/Config-and-Secrets.md): Config schema and Bitwarden setup.
+6.  [**Observability and Reporting**](docs/operations/Observability-and-Reporting.md): Logging, metrics, and report formats.
+7.  [**Implementation Status**](docs/project-info/Implementation-Status-and-Roadmap.md): Current feature status and roadmap.
+8.  [**Templates and Examples**](docs/guides/Templates-and-Examples.md): Standard templates for Repository Charter records, reports, and comparisons.
 
 ## 🚀 Quick Start
 
@@ -43,7 +43,7 @@ npm install
 bws run -- python scripts/run_graph.py analyze --repos "owner/repo"
 ```
 
-See [Runtime and Automation](docs/Runtime-and-Automation.md) for more details.
+See [Runtime and Automation](docs/operations/Runtime-and-Automation.md) for more details.
 
 ## 📁 Project Structure
 

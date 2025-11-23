@@ -267,7 +267,7 @@ Write-Host "Next Steps" -ForegroundColor Green
 Write-Host "========================================`n" -ForegroundColor Green
 
 Write-Host "1. Test secret injection:"
-Write-Host "   bws run -- python agentic_prototype.py`n"
+Write-Host "   bws run -- python scripts/run_graph.py analyze --repos \"owner/repo\"`n"
 
 Write-Host "2. Verify secrets are loaded:"
 Write-Host "   bws run -- env | grep -E 'GITHUB_TOKEN|GLM_API_KEY'`n"

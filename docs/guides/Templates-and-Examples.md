@@ -7,7 +7,7 @@ This document contains the canonical templates used by the system agents (Output
 
 ## 📝 Repository Initialization Template
 
-Used by the **Architect Agent** when a new repository is added to the system. It establishes the "Locked Baseline" against which future progress is measured.
+Used by the **Architect Agent** when a new repository is added to the system. It establishes the "Locked Repository Charter" (intent record) against which future progress is measured.
 
 > **Source Reference**: `archive/vision-v2-explorations/vision-v2-parallel-agents/Repository-Initialization-Template.md`
 
@@ -18,7 +18,7 @@ Used by the **Architect Agent** when a new repository is added to the system. It
 **Repository:** {repo-name}
 **Initialization Date:** {timestamp}
 **Analysis Version:** 1.0
-**Status:** 🔒 LOCKED BASELINE (Non-modifiable)
+**Status:** 🔒 LOCKED REPOSITORY CHARTER (Non-modifiable)
 
 ---
 
@@ -244,27 +244,27 @@ Used by the **Architect Agent** when a new repository is added to the system. It
 
 ---
 
-#### 📊 Current Baseline Metrics
+#### 📊 Repository Charter Benchmarks
 
-##### Code Quality Baseline
+##### Code Quality Charter Benchmark
 - **Linting Errors:** {count}
 - **Code Complexity:** {metric}
 - **Technical Debt Ratio:** {percentage}%
 - **Maintainability Index:** {score}
 
-##### Documentation Baseline
+##### Documentation Charter Benchmark
 - **README Completeness:** {percentage}%
 - **API Docs Coverage:** {percentage}%
 - **Comment Density:** {percentage}%
 - **Documentation Score:** {score}/100
 
-##### Testing Baseline
+##### Testing Charter Benchmark
 - **Test Coverage:** {percentage}%
 - **Tests Passing:** {count}/{total}
 - **Test Execution Time:** {time}
 - **Testing Score:** {score}/100
 
-##### Adherence to Plan Baseline
+##### Adherence to Plan Charter Benchmark
 - **Goals Defined:** {count}
 - **Phases Documented:** {count}
 - **Current Phase:** {phase-name}
@@ -272,7 +272,7 @@ Used by the **Architect Agent** when a new repository is added to the system. It
 
 ---
 
-#### 🎯 Baseline Goals Lock
+#### 🎯 Repository Charter Goal Lock
 
 **The following goals are LOCKED as of {date}:**
 
@@ -312,7 +312,7 @@ Used by the **Architect Agent** when a new repository is added to the system. It
 
 ## 📊 Status Report Template
 
-Used by the **Output Agent** to generate periodic status reports. It compares current metrics against the Locked Baseline and the 4 Pillars of Health.
+Used by the **Output Agent** to generate periodic status reports. It compares current metrics against the Locked Repository Charter and the 4 Pillars of Health.
 
 > **Source Reference**: `archive/vision-v2-explorations/vision-v2-parallel-agents/Status-Report-Template.md`
 
@@ -323,7 +323,7 @@ Used by the **Output Agent** to generate periodic status reports. It compares cu
 **Generated:** {timestamp}
 **Report Period:** {period}
 **Report Type:** Periodic Status Update
-**Baseline Version:** v{version}
+**Charter Version:** v{version}
 
 ---
 
@@ -469,8 +469,8 @@ Used by the **Output Agent** to generate periodic status reports. It compares cu
 **Trend:** {↑ Improving | → Stable | ↓ Declining}
 **Status:** {🟢 On Track | 🟡 Minor Deviation | 🔴 Significant Divergence}
 
-**Baseline Comparison:**
-- **Locked Baseline:** v{version} (Established: {date})
+**Charter Comparison:**
+- **Locked Charter:** v{version} (Established: {date})
 - **Goals on Track:** {on-track}/{total} ({percentage}%)
 - **Milestones Met:** {met}/{total} ({percentage}%)
 - **Phase Alignment:** {current-phase} vs. planned {planned-phase}
@@ -500,7 +500,7 @@ Used by the **Output Agent** to generate periodic status reports. It compares cu
 
 **Notes:** {progress-notes}
 
-**Divergences from Baseline:**
+**Divergences from Charter:**
 
 ⚠️ **Divergence 1: {Description}**
 - **Type:** Goal Change | Phase Slip | Scope Creep | Deprioritization
@@ -520,7 +520,7 @@ Used by the **Output Agent** to generate periodic status reports. It compares cu
 
 **Phase Status:**
 - **Current Phase:** {phase-name}
-- **Baseline Phase:** {planned-phase}
+- **Charter Phase:** {planned-phase}
 - **Alignment:** {aligned/ahead/behind}
 - **Days Off Track:** {days} ({ahead/behind})
 
@@ -609,20 +609,20 @@ Coverage: ████████████████░░░░ {percenta
 
 ---
 
-#### 📊 Comparison to Baseline
+#### 📊 Comparison to Charter Benchmarks
 
 ##### Goals Alignment
-| Goal | Baseline Status | Current Status | Alignment |
+| Goal | Charter Status | Current Status | Alignment |
 |------|----------------|----------------|-----------|
-| {goal-1} | {baseline} | {current} | {🟢/🟡/🔴} |
-| {goal-2} | {baseline} | {current} | {🟢/🟡/🔴} |
+| {goal-1} | {charter} | {current} | {🟢/🟡/🔴} |
+| {goal-2} | {charter} | {current} | {🟢/🟡/🔴} |
 
 ##### Metrics Drift
-| Metric | Baseline | Current | Delta | Status |
+| Metric | Charter Benchmark | Current | Delta | Status |
 |--------|----------|---------|-------|--------|
-| Test Coverage | {baseline}% | {current}% | {delta}% | {🟢/🟡/🔴} |
-| Code Quality | {baseline} | {current} | {delta} | {🟢/🟡/🔴} |
-| Documentation | {baseline}% | {current}% | {delta}% | {🟢/🟡/🔴} |
+| Test Coverage | {charter}% | {current}% | {delta}% | {🟢/🟡/🔴} |
+| Code Quality | {charter} | {current} | {delta} | {🟢/🟡/🔴} |
+| Documentation | {charter}% | {current}% | {delta}% | {🟢/🟡/🔴} |
 
 ---
 
@@ -676,7 +676,7 @@ Coverage: ████████████████░░░░ {percenta
 ---
 
 *Generated by Multi-Repo Agent Manager v1.0*
-*Baseline: v{version} | Report Version: {report-version}*
+*Charter Version: v{version} | Report Version: {report-version}*
 
 ## 📂 Examples
 - Prototype/dated run reports are archived under `archive/run-reports/` for reference only.

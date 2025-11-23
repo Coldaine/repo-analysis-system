@@ -16,6 +16,7 @@ Running, configuring, and monitoring the system.
 - [Config & Secrets](operations/Config-and-Secrets.md): Configuration management and Bitwarden integration.
 - [Observability](operations/Observability-and-Reporting.md): Tracing, logging, and metrics (LangSmith/OTel).
 - [Checkpointer & Persistence](operations/Checkpointer-and-Persistence.md): Postgres persistence and time-travel.
+- [Bitwarden Secrets Integration](Bitwarden-Secrets-Integration.md): Quick-start checklist for the `bws` CLI and required secrets.
 
 ## 📘 Guides (`guides/`)
 How-to guides and references.
@@ -27,8 +28,7 @@ How-to guides and references.
 Goals, roadmap, and decisions.
 - [Overview & Goals](project-info/Overview-and-Goals.md): Project vision and objectives.
 - [Status & Roadmap](project-info/Implementation-Status-and-Roadmap.md): Current progress and future plans.
-- [Anchor Goals](project-info/Implementation-Anchor-Goals.md): Key milestones.
-- [Unified Decisions](project-info/UNIFIED-DECISIONS.md): Record of architectural decisions.
+- [Architecture Decisions Index](project-info/UNIFIED-DECISIONS.md): ADR log pointing back to the canonical overview.
 
 ## Quick Links
 - [Main README](../README.md)

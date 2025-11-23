@@ -507,7 +507,7 @@ alignment_score: 0.78
 **Overall Alignment Score**: 78%
 **Summary**: Core architecture is implemented and functional. Several components are incomplete or divergent from documented design intent.
 
-**Comparison Baseline**:
+**Repository Charter Reference**:
 - `capabilities.md` (defines WHAT should exist)
 - `design_intent.md` (defines HOW it should work)
 
@@ -775,7 +775,7 @@ Cross-reference `capabilities.md` with implementation.
 **Interpretation**: The system is architecturally sound and functionally capable, but has operational gaps that must be addressed before production deployment.
 
 ## Sources
-### Comparison Baseline
+### Repository Charter Reference
 - analysis_docs/<repo-name>/capabilities.md
 - analysis_docs/<repo-name>/design_intent.md
 
@@ -1011,7 +1011,7 @@ Aggregate insights across ALL repositories to identify patterns, gaps, and strat
    - Effort: 3 days total
 2. **Standardize Database Migrations**
    - Add Alembic to all 6 PostgreSQL repos
-   - Create first migration for each (baseline)
+   - Create first migration for each (initial charter-aligned schema)
    - Effort: 1 week
 3. **Implement Health Checks**
    - Add /health endpoint to all production services

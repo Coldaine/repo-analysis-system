@@ -6,15 +6,15 @@
 ## ✅ Completed
 -   **Core Architecture**: LangGraph orchestration scaffolding with PostgreSQL persistence.
 -   **Secrets**: Bitwarden runtime injection (`bws run`) fully documented and integrated.
--   **Database**: PostgreSQL adapter and schema for baselines/metrics.
+-   **Database**: PostgreSQL adapter and schema for Repository Charters / metrics.
 -   **Agents**: Data Collection, Complexity, and Security agents scaffolded.
 -   **Documentation**: Consolidated into 8 canonical files; legacy archives cleaned.
 
 ## 🚧 In Progress / Gaps
 -   **Ingest Layer**: Webhook/App ingress + Redis queue/backpressure not implemented.
 -   **Pre-Processing**: Deterministic Node.js pipeline not implemented.
--   **Baseline System**: Schema exists, but initialization/loading logic is missing.
--   **Divergence Detection**: Logic to compare current state vs. locked baseline is missing.
+-   **Repository Charter System**: Schema exists, but initialization/loading logic is missing.
+-   **Divergence Detection**: Logic to compare current state vs. locked Repository Charter is missing.
 -   **Forensics Sub-Graph**: Needs full implementation of the "Pattern B" functional wrapper.
 -   **Reporting**: Template approval and GitHub publishing workflow incomplete.
 
@@ -24,9 +24,9 @@
 | :--- | :--- | :--- |
 | **Webhook Ingress** | 🔴 Not Started | Needs thin App/Action + Redis Queue |
 | **Dormant Audit** | 🟡 Planned | Cron job to trigger stale repos every 30m |
-| **Pre-Processing (Node)** | 🔴 Not Started | Must gather git/PR/issues/CI/baseline deltas |
-| **Baseline Init/Load** | 🟡 Partial | Schema exists; logic missing |
-| **Divergence Detection** | 🔴 Not Started | Needs baseline compare + routing |
+| **Pre-Processing (Node)** | 🔴 Not Started | Must gather git/PR/issues/CI/charter deltas |
+| **Repository Charter Init/Load** | 🟡 Partial | Schema exists; logic missing |
+| **Divergence Detection** | 🔴 Not Started | Needs intent compare + routing |
 | **Forensics Agent** | 🟡 Partial | Scaffolded; needs Sub-Graph implementation |
 | **PR Review Agent** | 🟡 Partial | Writes logs; commenting disabled by default |
 | **Parallelism** | 🟢 Supported | LangGraph supports it; ingress controls missing |
@@ -38,7 +38,7 @@
 **Goal**: Get the "Skeleton" walking.
 1.  **Ingest**: Implement the Redis Queue and the thin GitHub Action forwarder.
 2.  **Pre-Processing**: Build the Node.js script to generate the `RepoContext` JSON.
-3.  **Baseline**: Implement the `initialize_or_load_baseline` node.
+3.  **Repository Charter**: Implement the `initialize_or_load_baseline` node (the charter initializer).
 4.  **Forensics**: Implement the Investigator Sub-Graph using LangGraph v1.0 patterns.
 
 ### Phase 2: Monitoring & Reporting (Q1 2026)

@@ -1,25 +1,30 @@
 # Checkpointer and Persistence
 
-Persistence is a cornerstone of robust, production-grade LangGraph applications. The checkpointer system provides a seamless way to save and resume the state of your graphs, ensuring that long-running or critical workflows can survive interruptions and continue from where they left off.
+**Status**: Canonical  
+**Last Updated**: November 23, 2025
 
-This guide provides a deep dive into configuring and using checkpointers, with a focus on the `PostgresSaver`.
+Persistent checkpoints are how we turn LangGraph from a best-effort workflow into a reliable system. The runtime executes nodes; the checkpointer records their state so we can resume, audit, or fork any run on demand. This document captures the operational details for the Postgres-backed saver used in production.
 
-## The Role of the Checkpointer
+## 🔍 At a Glance
 
-A checkpointer is a backend component that automatically records the state of your graph at the end of each successful step. When you `invoke` a graph with a specific `thread_id`, the checkpointer does the following:
+- **Thread IDs**: Every invocation **must** include a stable `thread_id`. Without it we cannot load or resume state.
+- **Storage**: Each completed node produces a serialized checkpoint row in PostgreSQL (`lg_checkpoints`).
+- **Resume**: Call `graph.invoke(None, config={"configurable": {"thread_id": ...}})` to pick up from the last successful node.
+- **Fork**: Provide both `thread_id` and `checkpoint_id` (or manually load a snapshot) to explore alternate execution paths.
+- **CLI Helper**: `python scripts/run_graph.py analyze --resume-thread <thread> [--checkpoint <ordinal>]` wraps the same behavior for operators.
 
-1.  **Saves State**: After each node in the graph finishes execution, the checkpointer saves the complete state to a persistent store (like a database).
-2.  **Enables Resumption**: If you `invoke` the graph again with the same `thread_id`, the checkpointer automatically loads the most recent saved state for that thread. The graph then resumes execution from the step *after* the last successfully completed one.
+## Why We Invest
 
-This makes your graphs resilient to failures, restarts, and deployments.
+1. **Crash Recovery** – Power loss or process restarts no longer trash hours of agent work.
+2. **Human-in-the-Loop** – Operators can pause, inspect intermediate state, then resume or fork with new inputs.
+3. **Auditability** – Every checkpoint captures the exact state behind a report, satisfying compliance and RCA needs.
+4. **Determinism** – Replaying a checkpoint reproduces observed behavior, making concurrency bugs fixable.
 
-## Configuring `PostgresSaver`
+See [Runtime and Automation](./Runtime-and-Automation.md) for when checkpoints are written in the broader workflow.
 
-For production environments, `PostgresSaver` is the recommended checkpointer. It stores graph snapshots in a PostgreSQL database, providing a durable and queryable persistence layer.
+## Configuration Reference
 
-### 1. Database Schema
-
-First, you need a table in your database to store the checkpoints. The `PostgresSaver` can create this for you automatically, but here is the SQL schema for reference:
+1. **Schema (auto-created)**
 
 ```sql
 CREATE TABLE IF NOT EXISTS lg_checkpoints (
@@ -29,155 +34,80 @@ CREATE TABLE IF NOT EXISTS lg_checkpoints (
 );
 ```
 
-### 2. Configuration
+2. **`config.yaml` snippet**
 
-The checkpointer is configured when you compile your graph. You instantiate `PostgresSaver` with the database connection details and pass it to the `compile` method.
+```yaml
+orchestration:
+  langgraph:
+    max_concurrent_runs: 5
+    retry_attempts: 3
+    recursion_limit: 25
+    checkpointer:
+      type: postgres
+      connection_string: "${POSTGRES_CONNECTION_STRING}"
+      table_name: "lg_checkpoints"
+      pool_size: 5
+      max_overflow: 10
+```
+
+3. **Compile-time wiring**
 
 ```python
 import os
 from langgraph.checkpoint.postgres import PostgresSaver
 
-# The connection string should be securely managed (e.g., via environment variables)
-db_url = os.environ.get("POSTGRES_CONNECTION_STRING", "postgresql+psycopg2://user:pass@localhost/db_name")
-
-# Instantiate the checkpointer
-# `serde` handles the serialization of the state.
+db_url = os.environ["POSTGRES_CONNECTION_STRING"]
 checkpointer = PostgresSaver.from_conn_string(db_url)
-
-# Pass the checkpointer to the compile() method
 graph = builder.compile(checkpointer=checkpointer)
 ```
 
-## Example: Resuming an Interrupted Run
+## Resume Playbook
 
-This example demonstrates the full lifecycle of a resumable graph: initial invocation, interruption, and successful resumption.
+1. **Choose a `thread_id`** – Use delivery IDs, queue IDs, or human-readable tokens per run. Persist it in logs.
+2. **Initial Invocation** – `graph.invoke(initial_state, config={"configurable": {"thread_id": tid}})`.
+3. **Interruption** – If a node raises, LangGraph stops after checkpointing the last successful node.
+4. **Resume** – Re-run `graph.invoke(None, config={"configurable": {"thread_id": tid}})` to continue. Passing `None` tells the runtime to load state from storage.
 
 ```python
-import os
-import uuid
-import time
-from typing import TypedDict, Annotated
-
-from langgraph.graph import StateGraph, START, END
-from langgraph.graph.message import add_messages
-from langgraph.checkpoint.postgres import PostgresSaver
-from langchain_core.messages import HumanMessage, AIMessage
-
-# --- 1. Define State and Graph ---
-
-class State(TypedDict):
-    messages: Annotated[list, add_messages]
-
-def node_1(state: State):
-    print("Executing Node 1")
-    time.sleep(1)
-    return {"messages": [AIMessage(content="Hello from Node 1")]}
-
-def node_2(state: State):
-    print("Executing Node 2")
-    # Simulate a failure during the second step
-    if len(state["messages"]) < 3:
-        print("Node 2 is failing...")
-        raise ValueError("A transient error occurred!")
-    print("Node 2 succeeded on retry.")
-    time.sleep(1)
-    return {"messages": [AIMessage(content="Hello from Node 2")]}
-
-def node_3(state: State):
-    print("Executing Node 3")
-    time.sleep(1)
-    return {"messages": [AIMessage(content="Workflow complete!")]}
-
-builder = StateGraph(State)
-builder.add_node("node_1", node_1)
-builder.add_node("node_2", node_2)
-builder.add_node("node_3", node_3)
-
-builder.add_edge(START, "node_1")
-builder.add_edge("node_1", "node_2")
-builder.add_edge("node_2", "node_3")
-builder.add_edge("node_3", END)
-
-# --- 2. Compile with Checkpointer ---
-
-# Ensure you have a running Postgres instance and the connection string is set
-db_url = os.environ.get("POSTGRES_CONNECTION_STRING")
-if not db_url:
-    raise ValueError("POSTGRES_CONNECTION_STRING environment variable not set.")
-
-checkpointer = PostgresSaver.from_conn_string(db_url)
-graph = builder.compile(checkpointer=checkpointer)
-
-# --- 3. Run and Simulate Interruption ---
-
-# Each run needs a unique, persistent ID
-thread_id = str(uuid.uuid4())
+thread_id = "repo__main__2025-11-23T06:00"
 config = {"configurable": {"thread_id": thread_id}}
 
-print(f"--- Starting initial run for thread_id: {thread_id} ---")
 try:
-    # The first invocation will fail in node_2
-    graph.invoke({"messages": [HumanMessage(content="Start")]}, config)
-except ValueError as e:
-    print(f"\nGraph interrupted as expected: {e}\n")
+    graph.invoke(initial_state, config=config)
+except Exception as exc:
+    print(f"Run paused: {exc}")
 
-# At this point, the checkpointer has saved the state *after* node_1 completed.
-# We can verify this by inspecting the checkpoint.
-checkpoint = checkpointer.get(config)
-print("--- State after interruption (loaded from checkpoint) ---")
-print(checkpoint.channel_values["messages"])
-print("-" * 20)
-
-
-# --- 4. Resume the Run ---
-
-print("\n--- Resuming the run ---")
-# To resume, we invoke the graph again with the same config.
-# We pass `None` as the input because the state is loaded from the checkpoint.
-final_state = graph.invoke(None, config=config)
-
-print("\n--- Final State ---")
-for message in final_state["messages"]:
-    print(f"- {message.type}: {message.content}")
-
-# Expected Output:
-# - human: Start
-# - ai: Hello from Node 1
-# - ai: Hello from Node 2
-# - ai: Workflow complete!
+resumed = graph.invoke(None, config=config)
+print(resumed["messages"][-1])
 ```
 
-## Time-Travel and Forking
+*Tip*: Inspect `checkpointer.get(config)` before resuming to verify exactly which node completed last.
 
-Checkpoints are immutable snapshots. This enables powerful debugging and what-if scenarios.
+## Time-Travel & Forking
 
-### Time-Traveling
-
-You can inspect the state of a graph at any point in its history by retrieving a specific checkpoint.
+1. **List History** – `checkpointer.list(config)` returns the ordered checkpoints for a thread.
+2. **Inspect State** – Grab `history[i].channel_values` to see state after step `i`.
+3. **Fork** – Launch a new thread from any snapshot:
 
 ```python
-# Get the history of a thread
-history = checkpointer.list(config)
-
-# Get the state as it was after the first step
-first_step_checkpoint = history[1] 
-print(first_step_checkpoint.channel_values)
+history = checkpointer.list({"configurable": {"thread_id": original_tid}})
+fork_source = history[3]
+fork_config = {"configurable": {"thread_id": "forked-" + original_tid}}
+graph.invoke(fork_source.channel_values, config=fork_config)
 ```
 
-### Forking a Run
+Forks maintain immutability—do not delete the source checkpoints even if the fork becomes the blessed path (record the decision in the ADR log instead).
 
-You can "fork" a run by starting a new run from an old checkpoint. This is useful for exploring alternative paths without re-running the initial steps.
+## Troubleshooting & Guardrails
 
-```python
-# Get a checkpoint from a previous run
-old_checkpoint = checkpointer.get({"configurable": {"thread_id": "some-past-thread-id"}})
+- **Missing `thread_id`** – Results in “no checkpoint” errors. Ensure every CLI/runner path injects one; the Redis queue ID is a safe default.
+- **State Bloat** – Keep `State` lean. Move large artifacts to object storage or runtime context so checkpoints stay small.
+- **Schema Migrations** – When adding/removing state keys, support both old and new formats until historical checkpoints age out.
+- **Database Hygiene** – Monitor table growth and vacuum schedule. Use TTL pruning for obsolete threads to keep the table performant.
+- **Security** – `POSTGRES_CONNECTION_STRING` is injected via Bitwarden; never hardcode credentials in config or source.
 
-# Start a new run, but from the old checkpoint's state
-new_thread_id = str(uuid.uuid4())
-forked_config = {"configurable": {"thread_id": new_thread_id}}
+## Related Reading
 
-# The `invoke` call will start with the state from `old_checkpoint`
-graph.invoke(old_checkpoint.channel_values, config=forked_config)
-```
-
-By leveraging checkpointers, you can build highly reliable and introspectable agentic systems.
+- [Runtime and Automation](./Runtime-and-Automation.md) – Event ingest, queueing, and when checkpoints fire.
+- [core-concepts/State-Model-and-Reducers.md](../core-concepts/State-Model-and-Reducers.md) – Returning deltas keeps checkpoints minimal and merge-safe.
+- [Observability and Reporting](./Observability-and-Reporting.md) – How checkpoint metadata surfaces in logs, traces, and dashboards.

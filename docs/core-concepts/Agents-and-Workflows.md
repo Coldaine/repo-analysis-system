@@ -122,7 +122,7 @@ The system uses **Claude Code Router (CCR)** to optimize cost and performance.
 Before the LangGraph pipeline starts, a Node.js layer performs deterministic data gathering:
 -   **Git Operations**: Clone, fetch, diff, log.
 -   **GitHub API**: Fetch PRs, Issues, CI status.
--   **Baseline Comparison**: Diff vs. locked baseline.
+-   **Repository Charter Comparison**: Diff vs. locked charter/intent record.
 -   **Output**: A structured JSON contract fed into the LangGraph state.
 
 ## 🧩 Developer Patterns (LangGraph v1.0)

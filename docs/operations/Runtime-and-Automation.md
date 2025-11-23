@@ -6,225 +6,62 @@
 ## ⚙️ Execution Modes
 
 The system supports multiple execution modes via the `scripts/run_graph.py` entry point.
+# Runtime and Automation
 
-### 1. CLI (Manual)
-Run analysis manually for debugging or ad-hoc checks.
+**Status**: Canonical  
+**Last Updated**: November 23, 2025
 
-```bash
-# Full analysis of specific repos
-bws run -- python scripts/run_graph.py analyze --repos "owner/repo1" "owner/repo2"
+This document is the operational runbook for executing LangGraph analyses across the portfolio. It focuses on how work is triggered, routed, and guarded. All persistence specifics live in [Checkpointer and Persistence](./Checkpointer-and-Persistence.md).
 
-# Health check
-bws run -- python scripts/run_graph.py health
-```
+## ⚙️ Execution Modes
 
-### 2. Webhook (Event-Driven)
-Triggered by GitHub events (Push, PR, Issue).
--   **Payload**: JSON payload from GitHub.
--   **Action**: A thin GitHub App/Action validates the signature and forwards the event to the persistent runner's queue.
--   **Note**: LangGraph **never** runs inside the GitHub Action runner. The Action is purely a forwarder.
+All modes share the same entry point: `scripts/run_graph.py` (always wrapped with `bws run --`).
 
-### 3. Dormant Audit (Cron)
-Runs every 30 minutes to check for repositories that haven't been updated recently but might need a "heartbeat" check or have missed webhooks.
--   **Logic**: Scans for repositories with stale baselines (>X hours).
--   **Action**: Enqueues jobs only for those needing refresh.
+1. **CLI (Manual)** – Used for ad-hoc debugging and health checks. Supports repo targeting via `--repos`, health probes, and dry runs. Example: `bws run -- python scripts/run_graph.py analyze --repos owner/repo1`.
+2. **Webhook (Event-Driven)** – GitHub App/Action validates incoming push/PR/issue events and forwards the payload to the persistent runner’s queue. LangGraph never executes inside GitHub Actions; the action is a stateless forwarder.
+3. **Dormant Audit (Cron)** – A 30-minute systemd/cron timer calls into the runner to enqueue repositories whose Repository Charter snapshot is stale or that may have missed events.
 
----
+Execution mode determines _how_ work is enqueued, not how the graph runs—the runner normalizes every job into the same workflow.
 
-## 🖥️ Infrastructure (zo.computer)
+## 🖥️ Infrastructure Topology
 
-The system runs on a persistent VM/Container environment (`zo.computer`).
+The production deployment runs on `zo.computer` as a long-lived service:
 
-### Component Stack
-1.  **Runner Service**: A Python/Node.js service that consumes the job queue.
-2.  **PostgreSQL**: Stores state, baselines, and metrics.
-3.  **Redis**: Job queue for incoming webhook events (configurable; must support dedupe/backpressure).
-4.  **Repo Cache**: A persistent disk volume where repositories are cloned and kept in sync.
+- **Runner Service** – Python orchestrator that pulls jobs from the queue, injects Bitwarden secrets, and executes LangGraph workloads.
+- **Node.js Pre-Processor** – Deterministic git/GitHub/CI collector invoked before the graph to build the RepoContext JSON contract.
+- **Redis (Queue)** – Applies dedupe + backpressure, collapsing bursts of identical repo/branch events.
+- **PostgreSQL** – Stores Repository Charters/intent records, metrics, and LangGraph checkpoints.
+- **Repo Cache** – Persistent working tree for all tracked repositories, synchronized by the GitHub Sync Service (clone, fetch, prune loops).
 
-### GitHub Sync Service
-A dedicated service keeps the local `Repo Cache` synchronized with GitHub.
--   **Sync**: Clones missing repos, pulls updates for existing ones.
--   **Prune**: Removes repositories deleted from GitHub.
--   **Optimization**: Uses `git fetch` to minimize bandwidth.
+## 🔐 Secrets Injection Snapshot
 
----
+Secrets are injected at runtime with `bws run` (Bitwarden Secrets Manager). No `.env` files are committed or loaded.
 
-## 🔐 Secrets Injection (Bitwarden)
-
-We use **Bitwarden Secrets Manager** (`bws`) to inject secrets at runtime. **No secrets are stored in `.env` files.**
-
-### The `bws run` Pattern
-All commands are prefixed with `bws run`. This spawns a child process with the secrets injected as environment variables.
-
-```bash
-# Example: Running the orchestrator
-bws run -- python scripts/run_graph.py start-worker
-```
-
-### Required Secrets
--   `GITHUB_TOKEN`: For API access and cloning.
--   `ANTHROPIC_API_KEY`: For Claude models.
--   `GLM_API_KEY`: For GLM models.
--   `POSTGRES_CONNECTION_STRING`: For database access.
-
----
+- Required secrets: `GITHUB_TOKEN`, `GITHUB_OWNER`, `GLM_API_KEY`, `MINIMAX_API_KEY`, `POSTGRES_CONNECTION_STRING` (plus optional search keys).
+- Local, cron, and CI flows all wrap their invocation with `bws run -- ...` or `bitwarden/sm-action@v1`.
+- Configuration details, onboarding steps, and troubleshooting live in [Config and Secrets](./Config-and-Secrets.md).
 
 ## 🔄 Automation Workflow
 
-1.  **Event Ingest**:
-    -   **Webhook**: GitHub sends payload -> Action forwards to Redis Queue.
-    -   **Cron**: Scheduler checks for dormant repos -> Enqueues to Redis Queue.
-2.  **Queue Processing**:
-    -   **Deduplication**: Collapses burst events (e.g., 5 commits in 1 minute) into a single job per repo/branch.
-    -   **Backpressure**: Respects `max_concurrent_runs` to avoid overloading the runner.
-3.  **Pre-Processing (Node.js)**:
-    -   Pulls the repo to the `Repo Cache`.
-    -   Calculates deterministic diffs (files changed, CI status).
-    -   Generates the `RepoContext` JSON.
-4.  **Orchestration (LangGraph)**:
-    -   Initializes the graph state.
-    -   Fans out to parallel agents (Archivist, Architect, etc.).
-5.  **Reporting**:
-    -   Results are stored in PostgreSQL.
-    -   (Optional) Comments are posted back to the GitHub PR/Issue.
+1. **Event Ingest** – Webhook payloads and dormant-audit ticks hit the runner’s `/enqueue` endpoint. Metadata (delivery ID, repo, branch, reason) is persisted before queueing.
+2. **Queue Processing** – Redis deduplicates bursts and enforces `max_concurrent_runs`. Jobs leaving the queue are wrapped in a `bws run -- python scripts/run_graph.py --event <payload>` shell.
+3. **Deterministic Pre-Processing** – The Node.js layer syncs the repo cache, fetches PR/issue/CI deltas, computes file diffs, and emits a structured RepoContext JSON.
+4. **LangGraph Orchestration** – The Python graph ingests RepoContext, initializes state, fans out to agents (Archivist, Architect, Complexity, Security, Forensics), and aggregates results.
+5. **Reporting + Publication** – Results are written to PostgreSQL; optional GitHub comments/status checks are emitted with the service `GITHUB_TOKEN`.
 
-## 💾 Checkpointing and Persistence
+## 💾 Checkpointing (Pointer)
 
-The system uses **PostgreSQL** for persistent checkpointing, allowing long-running workflows to be paused, resumed, and inspected. This is critical for "human-in-the-loop" workflows and recovering from failures.
+Persistent checkpointing is mandatory for resumability and time-travel. Configure `orchestration.langgraph.checkpointer` with Postgres details, monitor thread IDs, and use `graph.invoke(None, config=...)` to resume interrupted runs. Detailed procedures, schema, and troubleshooting were consolidated into [Checkpointer and Persistence](./Checkpointer-and-Persistence.md) to avoid duplication.
 
-### Configuration
+## 🧱 Operational Guardrails
 
-Configure the checkpointer in your `config.yaml` (or equivalent) to point to your Postgres instance.
+- **Concurrency** – Tune `orchestration.langgraph.max_concurrent_runs` alongside Redis queue depth to prevent over-scheduling; prefer shedding load at enqueue time instead of letting LangGraph thrash.
+- **Recursion Limit** – Default `recursion_limit` is 25. Hitting it raises `GraphRecursionError`; on failure we emit partial artifacts and fall back to manual review.
+- **Burst Control** – Duplicate events (same repo, branch, SHA) within a short TTL are collapsed. Dormant audit jobs include a `reason` tag so operators can distinguish missed-webhook replays from real code changes.
 
-```yaml
-orchestration:
-  langgraph:
-    checkpointer:
-      type: postgres
-      connection_string: "${POSTGRES_CONNECTION_STRING}" # Injected via environment
-      # Optional: Connection pool settings
-      pool_size: 5
-      max_overflow: 10
-```
+## Related Documents
 
-### Resuming an Interrupted Run
-
-To resume a run, you need the `thread_id` of the interrupted workflow. You can find this in the logs or the database.
-
-```python
-from langgraph.checkpoint.postgres import PostgresSaver
-from psycopg_pool import ConnectionPool
-import os
-
-# 1. Initialize the Checkpointer
-# Ensure you have the connection string available
-pool = ConnectionPool(conninfo=os.environ["POSTGRES_CONNECTION_STRING"])
-checkpointer = PostgresSaver(pool)
-
-# 2. Configure the Run
-config = {
-    "configurable": {
-        "thread_id": "unique-thread-id-123",
-        # "checkpoint_id": "optional-specific-checkpoint-uuid" 
-    }
-}
-
-# 3. Resume Execution
-# Passing 'None' as input resumes from the last saved state.
-# You can also provide new input to 'steer' the execution.
-# graph.invoke(None, config=config)
-```
-
-### Time Travel (Forking)
-
-You can also "fork" a previous run by specifying a `checkpoint_id` from the past. This allows you to retry a failed step with different inputs or code fixes.
-
-```python
-# Fork from a specific checkpoint
-config = {
-    "configurable": {
-        "thread_id": "unique-thread-id-123",
-        "checkpoint_id": "0000-0000-0000-0000" # ID of the checkpoint to fork from
-    }
-}
-
-# Provide new input to diverge from the old path
-# graph.invoke({"messages": [HumanMessage(content="Let's try a different approach.")]}, config=config)
-```
-
-## 🧱 Guards and Limits
-- **recursion_limit**: Prevents unbounded super-steps; configure via `orchestration.langgraph.recursion_limit` and CLI. Handle `GraphRecursionError` by emitting partial outputs/logs and failing gracefully.
-- **Concurrency**: Tune `orchestration.langgraph.max_concurrent_runs`; enforce backpressure/dedupe at ingress to protect the runner.
-- **Burst Control**: Collapse duplicate events per repo/branch within a short window; apply queue TTLs to avoid stale jobs.
-
-## 📈 Persistence and Checkpoints
-
-LangGraph's checkpointer system is essential for building resilient, long-running workflows. It automatically saves the state of your graph after each step, allowing you to resume interrupted runs without losing progress.
-
-For detailed examples and advanced usage, see [Checkpointer and Persistence](./Checkpointer-and-Persistence.md).
-
-### Checkpointer Configuration (YAML)
-
-We use `PostgresSaver` to persist graph state to our PostgreSQL database. The checkpointer is configured in your `config.yaml` file.
-
-**Example `config.yaml` Snippet:**
-
-```yaml
-orchestration:
-  langgraph:
-    checkpointer:
-      type: postgres
-      # The connection string is injected at runtime via Bitwarden
-      connection_string: "${POSTGRES_CONNECTION_STRING}" 
-      # The table name for storing checkpoints
-      table_name: "lg_checkpoints"
-```
-
-When the graph is compiled, the application reads this configuration and initializes the `PostgresSaver` instance.
-
-### Resuming an Interrupted Run
-
-If a graph execution is interrupted (e.g., due to a machine restart or a transient error), you can resume it from the last known state using the checkpoint ID. The checkpoint ID is typically the `thread_id` associated with the run.
-
-**Example: Resuming a Graph**
-
-```python
-import uuid
-from langgraph.graph import StateGraph
-from langgraph.checkpoint.postgres import PostgresSaver
-
-# Assume 'graph' is your compiled StateGraph
-# and 'checkpointer' is your configured PostgresSaver instance.
-
-# A unique ID for this specific run
-thread_id = str(uuid.uuid4())
-config = {"configurable": {"thread_id": thread_id}}
-
-# --- Initial Run (gets interrupted) ---
-try:
-    initial_state = {"messages": ["step 1"]}
-    graph.invoke(initial_state, config=config)
-    # ... imagine this crashes after a few steps
-except Exception as e:
-    print(f"Graph interrupted: {e}")
-
-# --- Resuming the Run ---
-# To resume, you invoke the graph again with the *same thread_id*.
-# LangGraph's checkpointer will automatically load the last saved state
-# for that thread_id and continue from where it left off.
-
-print(f"Resuming run for thread_id: {thread_id}")
-
-# Pass an empty input, as the state is loaded from the checkpoint.
-# The graph will resume execution at the step after the last successful one.
-resumed_state = graph.invoke(None, config=config)
-
-print("Graph resumed and completed successfully.")
-print(resumed_state)
-```
-
-This pattern is crucial for the reliability of our system, ensuring that webhook-triggered or cron-initiated analyses can survive infrastructure failures and complete successfully.
-
-## ⚠️ Legacy V1 (Cron Analysis)
-
-*Historical Note*: The V1 system ran as a monolithic 6-hour cron job. This has been superseded by the V2 Event-Driven architecture. The legacy design documents have been archived and removed.
+- [Config and Secrets](./Config-and-Secrets.md) – Detailed Bitwarden setup, configuration schema, and required secret inventory.
+- [Checkpointer and Persistence](./Checkpointer-and-Persistence.md) – Deep dive on PostgresSaver, schema, resume/fork flows, and inspection commands.
+- [Observability and Reporting](./Observability-and-Reporting.md) – Logging, metrics, tracing, and reporting layers once runs complete.
+-   `GLM_API_KEY`: For GLM models.

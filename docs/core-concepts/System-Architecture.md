@@ -27,7 +27,7 @@ When conflicts arise (e.g., README says one thing, Code says another), the syste
 The system is primarily reactive, triggered by GitHub events, but maintains a heartbeat for dormant repositories.
 
 -   **Webhooks**: A GitHub App forwards events (Push, PR, Issue) to the runner.
--   **Dormant Audit (Cron)**: A 30-minute job scans for repositories with stale baselines (>X hours) or missed webhooks.
+-   **Dormant Audit (Cron)**: A 30-minute job scans for repositories whose Repository Charter snapshot is stale (>X hours) or missed webhooks.
 -   **Queue**: Redis-backed job queue to handle burst events and apply backpressure.
 
 ### 2. Pre-Processing (Node.js)
@@ -37,7 +37,7 @@ The system is primarily reactive, triggered by GitHub events, but maintains a he
 -   **Responsibilities**:
     -   Git operations (clone, fetch, diff, log).
     -   GitHub API fetching (PRs, Issues, CI status).
-    -   Baseline comparison (diff vs. locked baseline).
+    -   Charter comparison (diff vs. locked Repository Charter).
 -   **Output**: Structured JSON fed into the LangGraph state.
 
 ### 3. Orchestration (LangGraph)
@@ -74,7 +74,7 @@ Agents are not just prompts; they are **Tool Users** with specific roles.
 
 ### 5. Storage Layer
 -   **PostgreSQL**: The primary source of truth.
-    -   Stores: Baselines, Analysis Runs, Metrics, Graph State (Checkpoints).
+    -   Stores: Repository Charters/intent records, Analysis Runs, Metrics, Graph State (Checkpoints).
     -   Schema: Optimized for concurrent writes and JSON-structured data.
 -   **Checkpointer**:
     -   Use a Postgres-backed checkpointer (e.g., PostgresSaver) for LangGraph state.
