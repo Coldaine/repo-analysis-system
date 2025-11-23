@@ -8,11 +8,13 @@ from .analysis import AnalysisAgent
 from .search import SearchAgent
 from .visualization import VisualizationAgent
 from .output import OutputAgent
+from .forensics_agent import DocAlignmentInvestigator
 
 __all__ = [
     'DataCollectionAgent',
     'AnalysisAgent', 
     'SearchAgent',
     'VisualizationAgent',
-    'OutputAgent'
+    'OutputAgent',
+    'DocAlignmentInvestigator'
 ]
