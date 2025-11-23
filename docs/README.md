@@ -1,34 +1,35 @@
-# Documentation Index
+# Documentation Index (Canonical)
 
-This folder contains comprehensive documentation for the Agentic Repository Analysis System.
+The live, non-contradictory documentation for the Repo Analysis System.
 
-## Architecture & Design
+## 📚 Core Concepts (`core-concepts/`)
+Fundamental architecture and patterns for LangGraph v1.0.
+- [System Architecture](core-concepts/System-Architecture.md): High-level design, orchestration, and persistence.
+- [Agents & Workflows](core-concepts/Agents-and-Workflows.md): Graph definitions, subgraphs, and agent patterns.
+- [State Model & Reducers](core-concepts/State-Model-and-Reducers.md): `TypedDict` state, `add_messages`, and reducer semantics.
+- [ToolNode Patterns](core-concepts/ToolNode-and-Tool-Patterns.md): Scatter-gather, error handling, and tool execution.
+- [Runtime Object](core-concepts/Runtime-Object.md): Dependency injection and context management.
 
-- **[Automated Cron Analysis System Design](automated-cron-analysis-system-design.md)** - System architecture and cron job design
-- **[Complete Prototype Overview](complete-prototype-overview.md)** - Full prototype implementation details
+## ⚙️ Operations (`operations/`)
+Running, configuring, and monitoring the system.
+- [Runtime & Automation](operations/Runtime-and-Automation.md): Execution modes (CLI, Webhook, Cron) and infrastructure.
+- [Config & Secrets](operations/Config-and-Secrets.md): Configuration management and Bitwarden integration.
+- [Observability](operations/Observability-and-Reporting.md): Tracing, logging, and metrics (LangSmith/OTel).
+- [Checkpointer & Persistence](operations/Checkpointer-and-Persistence.md): Postgres persistence and time-travel.
 
-## Analysis & Insights
+## 📘 Guides (`guides/`)
+How-to guides and references.
+- [Migration Guide v1.0](guides/Migration-Guide-v1.0.md): Checklist for migrating from v0.x to v1.0.
+- [Testing & Validation](guides/Testing-and-Validation.md): Unit and integration testing strategies.
+- [Templates & Examples](guides/Templates-and-Examples.md): Code snippets and patterns.
 
-- **[Current Analysis Summary](current-analysis-summary.md)** - Latest analysis results and findings
-- **[Initial PR Review Analysis](initial-pr-review-analysis.md)** - Pull request review analysis methodology
-
-## Visualization & Progress
-
-- **[Progress Visuals Corpus](progress-visuals-corpus.md)** - Collection of visualization examples
-- **[Visual Timeline Proposals](visual-timeline-proposals.md)** - Timeline visualization specifications
-
-## Planning & Requirements
-
-- **[Proposed Needs](proposed-needs.md)** - Feature requests and system requirements
-- **[Unified Decisions](UNIFIED-DECISIONS.md)** - Architecture decision records and system design choices
-
-## Security & Configuration
-
-- **[Bitwarden Secrets Integration](Bitwarden-Secrets-Integration.md)** - Secure secrets management with Bitwarden Secrets Manager
+## ℹ️ Project Info (`project-info/`)
+Goals, roadmap, and decisions.
+- [Overview & Goals](project-info/Overview-and-Goals.md): Project vision and objectives.
+- [Status & Roadmap](project-info/Implementation-Status-and-Roadmap.md): Current progress and future plans.
+- [Anchor Goals](project-info/Implementation-Anchor-Goals.md): Key milestones.
+- [Unified Decisions](project-info/UNIFIED-DECISIONS.md): Record of architectural decisions.
 
 ## Quick Links
-
-- [Main README](../README.md) - Project overview and setup instructions
-- [Configuration](../config.yaml) - System configuration file
-- [Logs Directory](../logs/) - Analysis run logs
-- [Review Logging](../review_logging/) - Generated visualizations and summaries
+- [Main README](../README.md)
+- [Configuration](../config.yaml)
