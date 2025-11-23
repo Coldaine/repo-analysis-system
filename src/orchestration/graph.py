@@ -3,6 +3,7 @@ LangGraph Orchestrator
 Enhanced graph-based orchestration for repository analysis with LangGraph integration
 """
 
+import os
 import logging
 from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
@@ -17,9 +18,13 @@ from agents.data_collection import DataCollectionAgent
 from models.model_manager import ModelManager
 from agents.visualization import VisualizationAgent
 from agents.output import OutputAgent
+from agents.complexity_agent import ComplexityAgent
+from agents.security_agent import SecurityAgent
 from agents.pr_review import PRReviewAgent
+from utils.logging import get_logger, correlation_id, timer_decorator, correlation_context
 
-logger = logging.getLogger(__name__)
+# Replace standard logging with enhanced structured logging
+logger = get_logger(__name__)
 
 @dataclass
 class GraphState:
@@ -28,17 +33,21 @@ class GraphState:
     repos: List[str] = field(default_factory=list)
     user_id: Optional[int] = None
     run_type: str = 'full'
-    
+
     # Processing state
     changed_repos: List[str] = field(default_factory=list)
     baselines: Dict[str, Any] = field(default_factory=dict)
     per_repo_results: Dict[str, Dict[str, Any]] = field(default_factory=dict)
-    
+
+    # Code quality analysis state
+    complexity_results: Dict[str, Any] = field(default_factory=dict)
+    security_results: Dict[str, Any] = field(default_factory=dict)
+
     # Output state
     visualizations: List[Dict[str, Any]] = field(default_factory=list)
     summary: Dict[str, Any] = field(default_factory=dict)
     metrics: Dict[str, Any] = field(default_factory=dict)
-    
+
     # Error handling
     errors: List[str] = field(default_factory=list)
     current_step: str = "initialization"
@@ -49,23 +58,25 @@ class RepositoryAnalysisGraph:
     def __init__(self, config: Dict, storage: StorageAdapter):
         self.config = config
         self.storage = storage
-        
+
         # Initialize components
         self.model_manager = ModelManager(config)
         self.data_agent = DataCollectionAgent(config, storage, self.model_manager)
         self.viz_agent = VisualizationAgent(config, storage, self.model_manager)
         self.output_agent = OutputAgent(config, storage, self.model_manager)
+        self.complexity_agent = ComplexityAgent(storage=storage)
+        self.security_agent = SecurityAgent(storage=storage)
         self.pr_agent = PRReviewAgent(config, storage, self.model_manager, self.output_agent)
-        
+
         # Graph configuration
         self.graph_config = config.get('orchestration', {}).get('langgraph', {})
         self.max_concurrent_runs = self.graph_config.get('max_concurrent_runs', 5)
         self.timeout_seconds = self.graph_config.get('timeout_seconds', 3600)
         self.retry_attempts = self.graph_config.get('retry_attempts', 3)
-        
+
         # Initialize LangGraph
         self.graph = self._build_langgraph()
-        
+
         # Initialize repo manager
         self.repo_manager = RepoManager(self.config)
     
@@ -82,18 +93,22 @@ class RepositoryAnalysisGraph:
         workflow.add_node("sync_repositories", self._sync_repositories)
         workflow.add_node("detect_changes", self._detect_changes)
         workflow.add_node("collect_data", self._collect_repository_data)
+        workflow.add_node("analyze_complexity", self._analyze_complexity)
+        workflow.add_node("analyze_security", self._analyze_security)
         workflow.add_node("analyze_repositories", self._analyze_repositories)
         workflow.add_node("generate_visualizations", self._generate_visualizations)
         workflow.add_node("review_pull_requests", self._review_pull_requests)
         workflow.add_node("generate_report", self._generate_report)
         workflow.add_node("finalize", self._finalize_analysis)
-        
+
         # Add edges
         workflow.add_edge(START, "initialize")
         workflow.add_edge("initialize", "sync_repositories")
         workflow.add_edge("sync_repositories", "detect_changes")
         workflow.add_edge("detect_changes", "collect_data")
-        workflow.add_edge("collect_data", "analyze_repositories")
+        workflow.add_edge("collect_data", "analyze_complexity")
+        workflow.add_edge("analyze_complexity", "analyze_security")
+        workflow.add_edge("analyze_security", "analyze_repositories")
         workflow.add_edge("analyze_repositories", "generate_visualizations")
         workflow.add_edge("generate_visualizations", "review_pull_requests")
         workflow.add_edge("generate_visualizations", "generate_report")
@@ -145,9 +160,53 @@ class RepositoryAnalysisGraph:
                 "error": str(e),
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
-    
-    
-    
+
+    async def _run_fallback_orchestration(self, repos: List[str], user_id: int = None,
+                                   run_type: str = 'full') -> Dict[str, Any]:
+        """Fallback orchestration without LangGraph"""
+        logger.info("Running fallback orchestration")
+
+        try:
+            # Step 1: Initialize
+            state = GraphState(
+                repos=repos,
+                user_id=user_id,
+                run_type=run_type,
+                current_step="initialization"
+            )
+
+            # Step 2: Detect changes (simplified)
+            state = await self._detect_changes(state)
+
+            # Step 3: Collect data
+            state = await self._collect_repository_data(state)
+
+            # Step 4: Analyze repositories
+            state = await self._analyze_repositories(state)
+
+            # Step 5: Generate visualizations
+            state = await self._generate_visualizations(state)
+
+            # Step 6: Generate report
+            state = await self._generate_report(state)
+
+            # Step 7: Finalize
+            state = await self._finalize_analysis(state)
+
+            return {
+                "status": "completed",
+                "state": state,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+
+        except Exception as e:
+            logger.error(f"Fallback orchestration failed: {e}")
+            return {
+                "status": "failed",
+                "error": str(e),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+
     async def _initialize_analysis(self, state: GraphState) -> GraphState:
         """Initialize the analysis workflow"""
         logger.info("Step: Initialize analysis")
@@ -232,9 +291,92 @@ class RepositoryAnalysisGraph:
             
         except Exception as e:
             state.errors.append(f"Data collection failed: {e}")
-        
+
         return state
-    
+
+    async def _analyze_complexity(self, state: GraphState) -> GraphState:
+        """Analyze code complexity for repositories"""
+        logger.info("Step: Analyze complexity")
+
+        state.current_step = "analyze_complexity"
+
+        try:
+            analysis_run_id = state.metrics.get('analysis_run_id')
+
+            for repo_key, repo_result in state.per_repo_results.items():
+                repo_data = repo_result['repository_data']
+
+                # Check if repository has a local path for analysis
+                # For now, we'll assume the repo needs to be cloned
+                # In production, this would integrate with git clone
+                repo_path = repo_data.path
+
+                if repo_path and os.path.exists(repo_path):
+                    # Analyze complexity
+                    complexity_result = self.complexity_agent.analyze_repository(
+                        repo_path=repo_path,
+                        repo_name=repo_key,
+                        analysis_run_id=analysis_run_id,
+                    )
+
+                    # Store results
+                    state.complexity_results[repo_key] = complexity_result.to_dict()
+                    repo_result['complexity_analysis'] = complexity_result.to_dict()
+
+                    logger.info(
+                        f"Complexity analysis for {repo_key}: "
+                        f"{complexity_result.metrics.get('total_hotspots', 0)} hotspots found"
+                    )
+                else:
+                    logger.warning(f"Repository path not found for {repo_key}, skipping complexity analysis")
+
+        except Exception as e:
+            logger.error(f"Complexity analysis failed: {e}")
+            state.errors.append(f"Complexity analysis failed: {e}")
+
+        return state
+
+    async def _analyze_security(self, state: GraphState) -> GraphState:
+        """Scan repositories for security vulnerabilities"""
+        logger.info("Step: Analyze security")
+
+        state.current_step = "analyze_security"
+
+        try:
+            analysis_run_id = state.metrics.get('analysis_run_id')
+
+            for repo_key, repo_result in state.per_repo_results.items():
+                repo_data = repo_result['repository_data']
+
+                # Check if repository has a local path for analysis
+                repo_path = repo_data.path
+
+                if repo_path and os.path.exists(repo_path):
+                    # Scan for vulnerabilities
+                    security_result = self.security_agent.analyze_repository(
+                        repo_path=repo_path,
+                        repo_name=repo_key,
+                        analysis_run_id=analysis_run_id,
+                    )
+
+                    # Store results
+                    state.security_results[repo_key] = security_result.to_dict()
+                    repo_result['security_analysis'] = security_result.to_dict()
+
+                    logger.info(
+                        f"Security scan for {repo_key}: "
+                        f"{security_result.summary.get('total_vulnerabilities', 0)} vulnerabilities found "
+                        f"({security_result.summary.get('critical', 0)} critical)"
+                    )
+                else:
+                    logger.warning(f"Repository path not found for {repo_key}, skipping security scan")
+
+        except Exception as e:
+            logger.error(f"Security analysis failed: {e}")
+            state.errors.append(f"Security analysis failed: {e}")
+
+        return state
+
     async def _analyze_repositories(self, state: GraphState) -> GraphState:
         """Analyze repositories for pain points"""
         logger.info("Step: Analyze repositories")
