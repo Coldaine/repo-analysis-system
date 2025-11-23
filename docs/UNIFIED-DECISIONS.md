@@ -331,6 +331,38 @@
 
 ---
 
+### Decision 12: Event Dispatch & Runner Architecture
+**DECISION (Nov 23, 2025)**: Split the GitHub-facing layer from the persistent LangGraph runner. GitHub infrastructure only validates events and forwards them; a long-lived runner service performs all deterministic prep, LangGraph execution, storage writes, and report publication.
+
+**Rationale**:
+- Keeps compliance with Decision 3 (webhooks + dormant audit) without depending on Docker Compose or long-running GitHub Actions.
+- Preserves Decisions 4, 8, and 11 by keeping repo caches, PostgreSQL, Bitwarden secrets, and Node.js pre-processing scripts in a trusted environment.
+- Provides one queue/backpressure node so duplicate events collapse and expensive analyses don’t fan out uncontrollably.
+
+**Architecture Overview**:
+1. **GitHub App / Action (Thin Forwarder)**
+  - Verifies webhook signatures for push, PR, issue, and status events.
+  - Uses `bitwarden/sm-action@v1` or a short-lived machine token to obtain a scoped credential that can only hit the runner’s `/enqueue` API.
+  - Relays the event payload plus metadata (delivery ID, installation, repo) and immediately returns; it never runs LangGraph or accesses persistent secrets.
+  - Schedules the 30-minute dormant audit ping (GitHub scheduled workflow or external cron) to call `/audit/dormant` on the runner.
+
+2. **Persistent Runner (VM/Systemd Service on zo.computer)**
+  - Hosts the repo cache, PostgreSQL connectivity, Redis/queue, deterministic pre-processing scripts, and LangGraph runtime.
+  - Pulls jobs from the queue, dedupes identical events, enforces per-repo concurrency, and executes `bws run -- python scripts/run_graph.py --event <payload>`.
+  - Runs the dormant-audit scheduler locally (systemd timer) so the `dormant_audit` subgraph triggers even if GitHub scheduling stalls.
+
+3. **Result Publication Layer**
+  - After LangGraph completes, posts GitHub status checks, summary comments, and inline findings using a service `GITHUB_TOKEN` stored in Bitwarden.
+  - Publishes progressive-disclosure outputs (Level 1/2/3) by uploading artifacts and embedding their links per Decision 10 templates.
+
+**Impacts**:
+- GitHub layer stays stateless/cheap; heavy computation and secrets stay near the data.
+- Secrets never leave the Bitwarden-controlled runner, upholding Decision 11.
+- Queue/backpressure logic is centralized, fully satisfying the “queue + collapse duplicates” clause in Decision 3.
+- Future hosting changes only require relocating the runner; the GitHub forwarder remains unchanged.
+
+---
+
 ## 📋 Implementation Phases
 
 ### Implementation Approach (Revised: Single Big Bang Phase + Enhancement Loop)
@@ -368,6 +400,16 @@
 3. **Smart pre-processing** - Do what's deterministic, AI does what requires reasoning
 4. **Template-driven outputs** - Approve once, generate consistently
 5. **Event-driven architecture** - No work when no changes (efficiency without compromise)
+
+---
+
+## Execution Guardrails (Clarification)
+
+- **Event triggers & backpressure**: Webhook-first for push, pull_request (open/update/synchronize/reopen), issues, and CI status/check runs, plus a 30-minute dormant audit cron. Define change signatures, map triggers → subgraphs/run types, collapse duplicate events per repo/branch within a short window, and enforce concurrency limits/queues to prevent burst fan-out.
+- **Deterministic pre-processing first**: The Node.js layer gathers commits since last run, file diffs, PR/issue metadata, CI status changes, dependency/config deltas, merge conflicts, and baseline divergences before any LangGraph/LLM calls. PR-only diff ingestion is insufficient; the pre-processing JSON is the contract for downstream agents.
+- **Persistent runtime boundaries**: LangGraph executes on a persistent service with PostgreSQL and a repo cache at `repositories.workspace_path`. Transient CI/Action runners must only validate webhooks and forward jobs to the persistent service; they do not run the graph. Queue/backoff live in the persistent tier, not in Actions.
+- **Baseline and outputs are mandatory**: The full baseline system runs on every qualifying repo (no lightweight mode). Progressive disclosure templates (Levels 1–4) must be produced and approved; PR comments/status checks should link to these outputs rather than emit raw model text.
+- **Secrets and tokens**: Bitwarden runtime injection (`bws run` / `bitwarden/sm-action@v1`) is the only path for DB/API/LLM credentials. Actions receive only short-lived tokens to call the persistent service; no stored env files or long-lived secrets in runners.
 
 ---
 
