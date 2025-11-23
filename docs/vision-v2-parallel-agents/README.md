@@ -11,7 +11,7 @@ This folder contains the enhanced vision for a comprehensive repository health t
 - **Parallel Execution**: True parallel Claude instances via CCR
 - **4 Pillars Framework**: Code Quality, Documentation, Testing, Goal Adherence
 - **Pre-Processing**: Gather review items before AI analysis (60-70% faster)
-- **Frequent Reporting**: 30-minute configurable status reports
+- **Frequent Reporting**: Configurable status reports
 
 ## Technology Stack
 
@@ -27,7 +27,7 @@ This folder contains the enhanced vision for a comprehensive repository health t
 2. **Parallel Agents**: Multiple Claude processes, not just sequential chaining
 3. **Pre-Processing**: Review item gathering before AI analysis
 4. **Goal Tracking**: 8 anchor goals with locked success criteria
-5. **Higher Frequency**: 30-min vs 6-hour intervals
+5. **Higher Frequency**: Supports frequent reporting intervals
 
 ## Documents in this Vision
 

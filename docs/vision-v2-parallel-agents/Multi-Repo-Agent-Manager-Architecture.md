@@ -12,7 +12,7 @@ A multi-repository management system that:
 - ✅ Syncs all GitHub repositories automatically
 - ✅ Spawns TRUE parallel Claude agents (one per repo)
 - ✅ Routes all agents through CCR for 98% cost savings
-- ✅ Generates periodic status reports (every 30 min, configurable)
+- ✅ Generates periodic status reports (configurable cadence)
 - ✅ Tracks "5 pillars" and goals for each repository
 
 ---
@@ -347,7 +347,7 @@ class CCRAgentSpawner {
 ```javascript
 class SchedulerService {
   constructor(config) {
-    this.syncInterval = config.syncInterval || 30 * 60 * 1000; // 30 min
+    this.syncInterval = config.syncInterval || 30 * 60 * 1000; // configurable interval
     this.reportInterval = config.reportInterval || 30 * 60 * 1000;
     this.jobs = [];
   }
@@ -635,7 +635,7 @@ node index.js pillars --repo my-repo
 
 1. **True Parallelism:** Multiple Claude instances running simultaneously
 2. **Cost Savings:** 96-98% reduction through CCR routing to Z.ai
-3. **Automation:** Set it and forget it - runs every 30 minutes
+3. **Automation:** Set it and forget it - runs on a configurable interval
 4. **Comprehensive:** Tracks all aspects of repository health
 5. **Scalable:** Handles dozens of repositories efficiently
 6. **Flexible:** Configurable intervals, metrics, and thresholds

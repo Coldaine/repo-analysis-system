@@ -6,12 +6,12 @@ This folder contains the original vision for an automated repository analysis sy
 
 ## Core Concepts
 
-- **Scheduled Analysis**: 6-hour cron jobs on zo.computer
+- **Scheduled Analysis**: Cron-based jobs on zo.computer
 - **Sequential Agent Chaining**: CCR orchestration with GLM 4.6, MiniMax, Ollama
 - **PR-Focused Monitoring**: GitHub API for PRs, CI status, merge conflicts
 - **Solution Research**: Internet search for best practices
 - **Visualization**: Mermaid diagrams (timeline, Gantt, flowchart)
-- **Cost Target**: <$0.50/day
+- **Cost Awareness**: Minimize needless spend while meeting functional requirements
 
 ## Technology Stack
 

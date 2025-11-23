@@ -11,16 +11,16 @@ Based on comprehensive analysis of the repository portfolio and feedback from ex
 **Need**: Continuous, automated monitoring of repository health without manual intervention.
 
 **Requirements**:
-- Scheduled execution every 6 hours to maintain up-to-date repository health assessment
+- Scheduled execution on a recurring cadence to maintain up-to-date repository health assessment
 - Remote execution on zo.computer infrastructure for reliability and resource efficiency
 - Automated data collection from GitHub API for PR status, CI/CD pipeline health, and merge conflicts
 - Self-healing capabilities with error handling and retry mechanisms
-- Cost-effective operation with target budget under $0.50/day
+- Cost-aware operation without fixed targets
 
 **Implementation Approach**:
 ```mermaid
 flowchart TD
-    A[Cron Trigger<br/>Every 6 hours] --> B[Data Collection<br/>GitHub API]
+    A[Cron Trigger] --> B[Data Collection<br/>GitHub API]
     B --> C[Analysis Engine<br/>GLM 4.6/MiniMax]
     C --> D[Pain Point Detection<br/>Pattern Recognition]
     D --> E[Solution Research<br/>Internet Search]
@@ -152,22 +152,9 @@ flowchart TD
 - Integration with existing monitoring infrastructure
 
 **Progress Tracking Framework**:
-```mermaid
-gantt
-    title Repository Health Tracking Timeline
-    dateFormat  YYYY-MM-DD
-    axisFormat %m/%d
-    
-    section Repository Metrics
-    PR Velocity Trend    :active, pr-vel, 2025-11-01, 14d
-    Conflict Rate        :conflict, after pr-vel, 7d
-    CI Health Score      :ci-health, after conflict, 7d
-    
-    section Agent Performance
-    Analysis Efficiency  :agent-perf, 2025-11-01, 14d
-    Model Utilization    :model-use, after agent-perf, 7d
-    Error Rate           :error-rate, after model-use, 7d
-```
+- Timeline-based tracking of repository metrics and agent performance
+- Historical comparison to surface trends and regressions
+- Alerts when key signals degrade beyond thresholds
 
 ## Addressing PR Workflow Pain Points
 
@@ -249,15 +236,13 @@ Continuous integration with existing review_logging structure:
 
 ### Quantitative Metrics
 
-- **Detection Accuracy**: >95% pain point identification rate
-- **Response Time**: <30 minutes from issue detection to recommendation
-- **Cost Efficiency**: <$0.50/day operational cost
-- **Coverage**: 100% repository portfolio monitoring
-- **Resolution Speed**: 50% reduction in issue resolution time
+- **Detection Accuracy**: High precision on pain point identification
+- **Coverage**: Comprehensive repository portfolio monitoring
+- **Resolution Speed**: Meaningful reduction in issue resolution time
 
 ### Qualitative Metrics
 
-- **Actionability**: 90% of recommendations lead to concrete improvements
+- **Actionability**: Recommendations lead to concrete improvements
 - **Clarity**: Immediate understanding without additional explanation
 - **Relevance**: Context-aware recommendations specific to repository needs
 - **Adoption**: Seamless integration with existing workflows
@@ -265,25 +250,25 @@ Continuous integration with existing review_logging structure:
 
 ## Implementation Priorities
 
-### Phase 1: Foundation (Weeks 1-2)
+### Phase 1: Foundation
 - Cron job setup on zo.computer
 - Basic data collection and analysis agents
 - Integration with GitHub API
 - Initial visualization templates
 
-### Phase 2: Intelligence (Weeks 3-4)
+### Phase 2: Intelligence
 - CCR orchestration implementation
 - Multi-model integration
 - Pain point detection algorithms
 - Internet search integration
 
-### Phase 3: Optimization (Weeks 5-6)
+### Phase 3: Optimization
 - Advanced visualization capabilities
 - Performance optimization
 - Error handling and reliability improvements
 - User feedback integration
 
-### Phase 4: Scaling (Weeks 7-8)
+### Phase 4: Scaling
 - Full repository portfolio coverage
 - Advanced analytics and trend detection
 - Integration with additional tools and services

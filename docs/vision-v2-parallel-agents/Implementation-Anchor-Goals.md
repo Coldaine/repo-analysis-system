@@ -12,7 +12,9 @@ version: 1.0
 
 **The Unified Repository Analysis System** is an intelligent, automated platform that combines continuous PR workflow monitoring with goal-based repository health tracking to provide comprehensive, actionable insights for multi-repository portfolios.
 
-**Core Mission:** Proactively identify repository issues, track progress toward goals, detect plan divergences, and provide automated solutions - all while maintaining operational costs under $1/day.
+**Core Mission:** Proactively identify repository issues, track progress toward goals, detect plan divergences, and provide automated solutions, aligned with the locked architecture in `docs/UNIFIED-DECISIONS.md`.
+
+> Alignment note: Cadence, costs, and stack choices must match `docs/UNIFIED-DECISIONS.md`: webhook-first + dormant audit, LangGraph + PostgreSQL, Bitwarden runtime secrets, Node.js only for deterministic pre-processing.
 
 ---
 
@@ -43,9 +45,9 @@ Automatically discover, clone, sync, and monitor ALL repositories in the GitHub 
 
 **Metrics:**
 - **Target:** 100% repository coverage
-- **Update Frequency:** Every 6 hours
-- **Sync Success Rate:** >99%
-- **Time to Sync:** <5 minutes for full portfolio
+- **Update Frequency:** Event-driven (webhooks) plus dormant audit cadence
+- **Sync Success Rate:** High (>99%)
+- **Time to Sync:** Efficient end-to-end cloning/updating for the portfolio
 
 **Deliverables:**
 - GitHub Sync Service (Node.js/Python)
@@ -69,21 +71,21 @@ For every repository (new or existing), establish a **locked baseline** that cap
 - ✅ Classification (greenfield, legacy, migration, fork, archive)
 - ✅ Extraction of 4-10 core goals with success criteria
 - ✅ Documentation of development phases and milestones
-- ✅ Baseline stored in SQLite with SHA256 hash verification
+- ✅ Baseline stored in PostgreSQL with SHA256 hash verification
 - ✅ Baselines are **read-only** - require formal process to update
 - ✅ Baseline includes technology stack, key contributors, historical context
-- ✅ Baseline generation completes in <10 minutes per repository
+- ✅ Baseline generation completes in a timely manner
 
 **Metrics:**
 - **Target:** 100% repositories with baselines
-- **Baseline Quality:** >90% accuracy in goal extraction (human review)
+- **Baseline Quality:** High accuracy in goal extraction (human review)
 - **Immutability:** 0 unauthorized baseline modifications
-- **Generation Time:** <10 minutes per repo
+- **Generation Time:** Timely relative to pipeline SLAs
 
 **Deliverables:**
 - Repository Initialization Template
-- Baseline analysis agent (Claude via CCR)
-- SQLite schema for baseline storage
+- Baseline analysis node (LangGraph) using CCR Claude (initial)
+- PostgreSQL schema for baseline storage with hashing
 - Baseline verification and hashing system
 - Human review interface for baseline approval
 
@@ -109,10 +111,10 @@ Continuously monitor pull request workflows across all repositories to detect pa
 - ✅ Integration with existing GLM 4.6 pain point detection
 
 **Metrics:**
-- **Detection Accuracy:** >95% for PR issues
-- **Time to Detection:** <30 minutes from issue occurrence
-- **False Positive Rate:** <5%
-- **Solution Quality:** >80% actionable recommendations
+- **Detection Accuracy:** High for PR issues
+- **Detection Timeliness:** Prompt relative to event ingest
+- **False Positive Rate:** Low
+- **Solution Quality:** Actionable recommendations
 
 **Deliverables:**
 - PR monitoring agent (from existing system)
@@ -170,9 +172,9 @@ Track repository health across **5 comprehensive pillars**, providing a holistic
 
 **Metrics:**
 - **Pillar Coverage:** 100% repositories tracked across all pillars
-- **Update Frequency:** Every 30 minutes (quick) / 6 hours (deep)
-- **Score Accuracy:** >90% correlation with human assessment
-- **Trend Detection:** Identify degradation within 1 week
+- **Update Frequency:** Event-driven + dormant audit cadence
+- **Score Accuracy:** High correlation with human assessment
+- **Trend Detection:** Timely identification of degradation
 
 **Deliverables:**
 - Pillar analysis framework
@@ -203,10 +205,10 @@ Automatically detect when repositories deviate from their locked baseline goals,
 - ✅ Automated alerts via configured channels (email, Slack, GitHub issues)
 
 **Metrics:**
-- **Detection Speed:** <1 hour from divergence occurrence
-- **False Positive Rate:** <10%
+- **Detection Speed:** Timely after divergence
+- **False Positive Rate:** Low
 - **Human Review Rate:** 100% for major divergences
-- **Alert Delivery:** <5 minutes from detection
+- **Alert Delivery:** Prompt delivery via configured channels
 
 **Deliverables:**
 - Baseline comparison algorithms
@@ -224,7 +226,7 @@ Automatically detect when repositories deviate from their locked baseline goals,
 **Owner:** Pre-Processing Engine
 
 **Objective:**
-Gather and prepare all review items (commits, PRs, issues, file changes, baseline comparisons) **BEFORE** spawning AI agents, reducing analysis time by 60-70% and costs by 60%.
+Gather and prepare all review items (commits, PRs, issues, file changes, baseline comparisons) **BEFORE** spawning AI agents, reducing analysis time and resource consumption.
 
 **Success Criteria:**
 - ✅ Pre-processing script runs before every AI analysis cycle
@@ -232,14 +234,14 @@ Gather and prepare all review items (commits, PRs, issues, file changes, baselin
 - ✅ Performs baseline comparison upfront (divergences pre-calculated)
 - ✅ Outputs structured JSON with all review items
 - ✅ AI agents receive pre-gathered data, focus only on analysis
-- ✅ Reduction in AI tokens consumed: >60%
-- ✅ Reduction in analysis time: >60%
+- ✅ Meaningful reduction in AI tokens consumed
+- ✅ Meaningful reduction in analysis time
 - ✅ No loss in analysis quality
 
 **Metrics:**
-- **Time Savings:** 13-18 min → 5.5 min per repository
-- **Cost Savings:** 100k tokens → 37k tokens per analysis
-- **Pre-Processing Time:** <30 seconds per repository
+- **Time Savings:** Significant reduction vs. direct agent invocation
+- **Resource Savings:** Significant token/runtime reduction
+- **Pre-Processing Time:** Fast per repository
 - **Data Completeness:** 100% (no missing review items)
 
 **Deliverables:**
@@ -257,31 +259,25 @@ Gather and prepare all review items (commits, PRs, issues, file changes, baselin
 **Owner:** CCR Agent Spawner
 
 **Objective:**
-Spawn **TRUE parallel Claude instances** (multiple processes, not just organizational metadata) via CCR routing to Z.ai, enabling concurrent analysis of multiple repositories while achieving 96-98% cost savings.
+Run parallel analysis via LangGraph fan-out and/or CCR-driven workers to process multiple repositories concurrently while maintaining reliability and backpressure.
 
 **Success Criteria:**
-- ✅ Spawn separate `claude` CLI processes (not MCP metadata "agents")
-- ✅ Each process inherits CCR environment variables (ANTHROPIC_BASE_URL → Z.ai)
-- ✅ Configurable max concurrent agents (default: 5)
-- ✅ Batch processing for large repository portfolios
-- ✅ Process lifecycle management (start, monitor, cleanup)
-- ✅ Output capture and aggregation from parallel agents
-- ✅ Error handling and retry logic per agent
-- ✅ Cost verification: 96-98% savings vs. direct Anthropic
+- ✅ Configurable max concurrent runs (aligned with `orchestration.langgraph.max_concurrent_runs`)
+- ✅ Backpressure and duplicate-event collapse for bursts
+- ✅ Process/task lifecycle management (start, monitor, cleanup)
+- ✅ Output capture and aggregation from parallel runs
+- ✅ Error handling and retry logic per run
 
 **Metrics:**
-- **Parallelism:** 5 concurrent agents minimum
-- **Cost per Analysis:** <$0.12 per repository via Z.ai GLM-4.6
-- **Throughput:** 25 repositories in <15 minutes (5 at a time)
-- **Success Rate:** >95% agent completion rate
-- **Cost Savings:** >96% vs. Anthropic Claude Sonnet 4
+- **Parallelism:** Supports configured concurrency safely
+- **Throughput:** Efficient multi-repo processing under load
+- **Success Rate:** High completion rate
 
 **Deliverables:**
-- CCR Agent Spawner class
-- Process pool management
-- Environment variable inheritance verification
+- LangGraph fan-out configuration
+- Concurrency/backpressure controls
 - Output aggregation system
-- Cost tracking and reporting
+- Monitoring/metrics for parallel runs
 
 ---
 
@@ -305,14 +301,14 @@ Generate comprehensive yet concise status reports that provide immediate insight
 - ✅ Historical comparison (vs. last report, vs. baseline)
 - ✅ AI analysis notes with questions for human review
 - ✅ Reports stored in markdown format
-- ✅ Report generation time: <2 minutes per repository
+- ✅ Report generation is efficient per repository
 
 **Metrics:**
-- **Report Length:** <2,000 words (executive focus)
-- **Actionability:** >90% recommendations lead to improvements
+- **Report Length:** Concise executive-first outputs
+- **Actionability:** Recommendations lead to improvements
 - **Clarity:** Understandable without additional explanation
-- **Generation Time:** <2 minutes per repository
-- **Visual Quality:** >8/10 human rating for visualizations
+- **Generation Time:** Efficient generation per repository
+- **Visual Quality:** High-quality visuals
 
 **Deliverables:**
 - Status Report Template (implemented)
@@ -327,33 +323,24 @@ Generate comprehensive yet concise status reports that provide immediate insight
 
 ### Infrastructure Requirements
 
-**Deployment Platform:** zo.computer (or equivalent serverless)
-**Scheduling:** Dual-frequency cron jobs
-- Quick mode: Every 30 minutes (lightweight, pre-processing + quick checks)
-- Deep mode: Every 6 hours (full AI analysis, comprehensive reports)
-
-**Cost Constraints:**
-- **Target:** <$1.00/day total operational cost
-- **Breakdown:**
-  - Pre-processing: $0 (no AI)
-  - Quick mode (48/day): $0 (no AI, just data gathering)
-  - Deep mode (4/day): $0.48 (CCR → Z.ai: $0.12 × 4)
-  - PR monitoring: $0.10 (GLM 4.6 for pain detection)
-  - **Total: ~$0.58/day**
+**Deployment Platform:** Persistent runner (zo.computer) with webhook ingress
+**Scheduling:** Webhook-first for push/PR/issue/CI + 30-minute dormant audit cron
 
 **Technology Stack:**
-- **Language:** Node.js (primary) with Python for specific agents
-- **Database:** SQLite (baselines, historical data)
-- **AI Routing:** CCR → Z.ai GLM-4.6 (primary), GLM 4.6 direct (pain points)
-- **APIs:** GitHub API, internet search APIs
-- **Visualization:** Mermaid.js
-- **Storage:** File-based (markdown reports), DB (baselines/metrics)
+- **Orchestration:** Python + LangGraph (primary)
+- **Pre-Processing:** Node.js deterministic scripts (git/GitHub/baseline/CI/diff)
+- **Database:** PostgreSQL (baselines, historical data, metrics)
+- **AI Routing:** CCR Claude initially; expand per `UNIFIED-DECISIONS.md`
+- **Secrets:** Bitwarden runtime injection (`bws run`, `bitwarden/sm-action@v1`)
+- **APIs:** GitHub API, search APIs as needed
+- **Visualization:** Mermaid
+- **Storage:** Markdown outputs, database for state/metrics, repo cache on disk
 
 ---
 
 ## 📋 Implementation Phases
 
-### Phase 1: Foundation (Weeks 1-2)
+### Phase 1: Foundation
 **Goals Addressed:** 1, 2, 6, 7
 
 **Deliverables:**
@@ -362,17 +349,17 @@ Generate comprehensive yet concise status reports that provide immediate insight
 - Baseline Database Schema
 - Pre-Processing Engine
 - CCR Agent Spawner (basic)
-- Dual-frequency scheduler
+- Webhook ingest + dormant audit scheduler
 
 **Success Metrics:**
 - 100% repository discovery and sync
 - 100% repositories with baselines
-- Pre-processing operational (>60% time savings)
+- Pre-processing operational with measurable savings
 - Agent spawner working with CCR routing
 
 ---
 
-### Phase 2: Intelligence (Weeks 3-4)
+### Phase 2: Intelligence
 **Goals Addressed:** 3, 4, 5, 8
 
 **Deliverables:**
@@ -385,32 +372,30 @@ Generate comprehensive yet concise status reports that provide immediate insight
 
 **Success Metrics:**
 - All 5 pillars tracked for all repos
-- Divergence detection operational (<1h latency)
+- Divergence detection operational with timely latency
 - Reports generated automatically
-- PR pain points detected (>95% accuracy)
+- PR pain points detected with high accuracy
 
 ---
 
-### Phase 3: Optimization (Weeks 5-6)
+### Phase 3: Optimization
 **Goals Addressed:** All (refinement)
 
 **Deliverables:**
-- Performance optimization
-- Cost optimization validation
+- Performance and efficiency optimization
 - Enhanced visualizations
 - Quality assurance processes
 - User feedback integration
 - Documentation completion
 
 **Success Metrics:**
-- Cost <$1/day verified
-- Time <5.5 min per repo analysis
-- User satisfaction >90%
-- System reliability >99%
+- Efficiency improved
+- User satisfaction high
+- System reliability high
 
 ---
 
-### Phase 4: Scaling (Weeks 7-8)
+### Phase 4: Scaling
 **Goals Addressed:** All (production readiness)
 
 **Deliverables:**
@@ -424,8 +409,8 @@ Generate comprehensive yet concise status reports that provide immediate insight
 **Success Metrics:**
 - 100% portfolio monitored
 - Trend detection operational
-- Predictive accuracy >80%
-- System uptime >99.9%
+- Predictive insights improving
+- System uptime high
 
 ---
 
@@ -446,9 +431,8 @@ For each phase, the following validation checklist must be completed:
 - [ ] No critical bugs
 
 ### Performance Validation
-- [ ] Cost within budget (<$1/day)
-- [ ] Speed within targets (<5.5 min/repo)
 - [ ] Resource usage acceptable
+- [ ] Speed acceptable for workloads
 - [ ] Scalability validated
 
 ### User Validation
@@ -475,17 +459,16 @@ BEFORE implementing any feature, verify:
 3. How will we measure if this implementation meets the goal?
 
 IMPLEMENTATION PRIORITIES:
-Phase 1 (Weeks 1-2): Goals 1, 2, 6, 7
-Phase 2 (Weeks 3-4): Goals 3, 4, 5, 8
-Phase 3 (Weeks 5-6): All goals (optimization)
-Phase 4 (Weeks 7-8): All goals (scaling)
+Phase 1: Goals 1, 2, 6, 7
+Phase 2: Goals 3, 4, 5, 8
+Phase 3: All goals (optimization)
+Phase 4: All goals (scaling)
 
 CONSTRAINTS:
-- Total cost: <$1/day
-- Analysis time: <5.5 min per repository
 - Repository coverage: 100%
-- Divergence detection: <1 hour latency
-- Report generation: <2 minutes per repo
+- Event-driven + dormant audit architecture
+- Bitwarden runtime secrets only
+- LangGraph + PostgreSQL + Node pre-processing (deterministic)
 
 REFERENCE DOCUMENTS:
 - Architecture: docs/Multi-Repo-Agent-Manager-Architecture.md

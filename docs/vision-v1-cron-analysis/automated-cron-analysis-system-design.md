@@ -2,13 +2,13 @@
 
 ## System Overview
 
-The Automated Cron Analysis System is a periodically triggered workflow designed to continuously monitor and analyze the health of repositories in the workspace. Running remotely on zo.computer every 6 hours, it scans for pull request (PR) status, CI/CD pipeline health, and merge conflicts. It leverages AI models for in-depth analysis, performs internet searches for best practices and solutions to identified pain points, and generates concise reports with actionable proposals. The system addresses key pain points from prior reviews, such as CI/CD inconsistencies, merge conflicts, and logging gaps, by automating detection, research, and remediation suggestions.
+The Automated Cron Analysis System is a periodically triggered workflow designed to continuously monitor and analyze the health of repositories in the workspace. Running remotely on zo.computer on a cron schedule, it scans for pull request (PR) status, CI/CD pipeline health, and merge conflicts. It leverages AI models for in-depth analysis, performs internet searches for best practices and solutions to identified pain points, and generates concise reports with actionable proposals. The system addresses key pain points from prior reviews, such as CI/CD inconsistencies, merge conflicts, and logging gaps, by automating detection, research, and remediation suggestions.
 
 Core goals:
 - Proactive identification of issues like stalled PRs, failing CI jobs, and conflict-prone branches.
 - Integration of agentic workflows via Claude Code Router (CCR) for orchestrated analysis.
 - Generation of lightweight outputs: updated logs in `review_logging`, Mermaid diagrams for timelines and pain points, and key insight summaries with drill-down prompts.
-- Low-cost operation (<$0.50/day) with privacy-focused self-hosted models where possible.
+- Cost-aware operation with privacy-focused self-hosted models where possible.
 
 This system builds on the existing `repo-analysis-system` by populating placeholders in `initial-pr-review-analysis.md` and extending reviews like `architectural-pain-points-review.md` and `logging-observability-review.md` with real-time data.
 
@@ -16,7 +16,7 @@ This system builds on the existing `repo-analysis-system` by populating placehol
 
 ```mermaid
 flowchart TD
-    A[Cron Trigger every 6 hours] --> B[CCR Orchestrator on zo.computer]
+    A[Cron Trigger] --> B[CCR Orchestrator on zo.computer]
     B --> C[Data Collection Agent<br/>GitHub API: PRs, CI, Conflicts]
     C --> D[Analysis Agent<br/>GLM 4.6: Pain Point Detection]
     D --> E[Search Agent<br/>Internet APIs: Best Practices]
@@ -33,7 +33,7 @@ This diagram illustrates the high-level flow: from scheduling to orchestrated ag
 
 ## Components
 
-1. **Cron Scheduler**: Configured as `0 */6 * * *` on zo.computer to trigger the main script. Uses platform-native cron or serverless timers for reliability.
+1. **Cron Scheduler**: Configured on zo.computer to trigger the main script. Uses platform-native cron or serverless timers for reliability.
 
 2. **CCR Orchestrator**: Central router using Claude Code Router to chain agents. Defines workflows as prompt-based sequences, invoking tools for model calls (e.g., GLM 4.6 via API, MiniMax for quick tasks, Ollama for self-hosted privacy-sensitive analysis).
 
@@ -97,8 +97,8 @@ Error paths: If API rate-limited, fallback to cached data; if model fails, retry
    - Use GitHub API for automated PR if changes significant.
 
 5. **Scheduling**:
-   - Deploy as cron job: `0 */6 * * * python /path/to/cron_analysis.py`.
-   - Or serverless: Timer trigger every 6 hours.
+   - Deploy as a cron job on zo.computer.
+   - Or use a serverless timer trigger.
 
 6. **Testing**:
    - Local dry-run with mock data.
@@ -108,17 +108,7 @@ Error paths: If API rate-limited, fallback to cached data; if model fails, retry
    - Integrate simple alerting (e.g., via webhook to Discord).
    - Track runs with a log file visualized in Mermaid.
 
-## Cost/Security Analysis
-
-**Cost Estimate**:
-- GLM 4.6: ~$0.10 per run (4 runs/day, assuming 10k tokens/run at $5/M input).
-- MiniMax Free: $0 (lightweight tasks).
-- Ollama Self-Hosted: $0 (runs on zo.computer CPU/GPU).
-- API Calls: GitHub free tier sufficient; Google Search ~$0.20/day (100 queries).
-- zo.computer Hosting: ~$0.10/day for cron/serverless.
-- Total: <$0.50/day, scalable with caching.
-
-**Security Considerations**:
+## Security Considerations
 - API Keys: Stored as encrypted env vars on zo.computer; rotate quarterly.
 - Data Privacy: Use Ollama for sensitive repo scans; anonymize logs (no code snippets in summaries).
 - Access Control: GitHub token scoped to read-only for analysis repos; no write access to production.

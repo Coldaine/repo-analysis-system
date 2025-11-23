@@ -80,7 +80,7 @@ Based on the workspace analysis, the repository portfolio spans multiple categor
 **Source**: [`automated-cron-analysis-system-design.md`](automated-cron-analysis-system-design.md)
 
 **Key Components**:
-- **Cron Scheduler**: Configured to trigger every 6 hours on zo.computer
+- **Cron Scheduler**: Configured to trigger on a recurring cadence on zo.computer
 - **CCR Orchestrator**: Central router using Claude Code Router to chain agents
 - **Data Collection Agent**: Fetches PR status, CI health, and merge conflicts via GitHub API
 - **Analysis Agent**: Uses GLM 4.6 for semantic analysis, MiniMax for quick triage, Ollama for privacy-sensitive analysis
@@ -92,7 +92,7 @@ Based on the workspace analysis, the repository portfolio spans multiple categor
 - Proactive identification of issues like stalled PRs, failing CI jobs, and conflict-prone branches
 - Integration of agentic workflows via CCR for orchestrated analysis
 - Generation of lightweight outputs with key insight summaries
-- Low-cost operation (<$0.50/day) with privacy-focused self-hosted models
+- Resource-aware operation with privacy-focused self-hosted models
 
 ### 2. Architectural Improvements
 
@@ -148,25 +148,25 @@ Based on the workspace analysis, the repository portfolio spans multiple categor
 
 ## Integration Roadmap
 
-### Phase 1: Foundation (Weeks 1-2)
+### Phase 1: Foundation
 - Set up automated cron analysis system on zo.computer
 - Implement basic data collection and analysis agents
 - Create standardized CI templates for common repository types
 - Establish centralized logging framework
 
-### Phase 2: Intelligence (Weeks 3-4)
+### Phase 2: Intelligence
 - Deploy CCR orchestration for agent chaining
 - Implement multi-model integration (GLM 4.6, MiniMax, Ollama)
 - Develop pain point detection algorithms
 - Create initial visualization templates
 
-### Phase 3: Optimization (Weeks 5-6)
+### Phase 3: Optimization
 - Enhance visualization capabilities with interactive elements
 - Implement advanced logging and observability features
 - Optimize agent performance and resource utilization
 - Develop quality assurance processes
 
-### Phase 4: Scaling (Weeks 7-8)
+### Phase 4: Scaling
 - Achieve full repository portfolio coverage
 - Implement advanced analytics and trend detection
 - Integrate with additional tools and services
@@ -176,7 +176,7 @@ Based on the workspace analysis, the repository portfolio spans multiple categor
 
 ### Quantitative Targets
 - **Pain Point Detection**: >95% accuracy in identifying repository issues
-- **Response Time**: <30 minutes from issue detection to recommendation
+- **Response Time**: Timely recommendations after issue detection
 - **Operational Cost**: <$0.50/day for automated system
 - **Repository Coverage**: 100% monitoring of portfolio repositories
 - **Resolution Speed**: 50% reduction in issue resolution time

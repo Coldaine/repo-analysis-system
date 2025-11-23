@@ -184,6 +184,16 @@ async def main():
         action='store_true',
         help='Enable PR review for this run'
     )
+    analyze_parser.add_argument(
+        '--recursion-limit',
+        type=int,
+        help='Recursion limit to pass into LangGraph (default: 25)'
+    )
+    analyze_parser.add_argument(
+        '--checkpointer',
+        choices=['memory', 'postgres'],
+        help='Which checkpointer to use for the graph (memory|postgres)'
+    )
     
     # Health check command
     health_parser = subparsers.add_parser(
@@ -237,6 +247,13 @@ async def main():
             run_type = getattr(args, 'run_type', 'full')
             enable_pr = getattr(args, 'enable_pr_review', False)
             
+            recursion_limit = getattr(args, 'recursion_limit', None)
+            if recursion_limit is not None:
+                runner.config.setdefault('orchestration', {}).setdefault('langgraph', {})['recursion_limit'] = recursion_limit
+
+            checkpointer = getattr(args, 'checkpointer', None)
+            if checkpointer:
+                runner.config.setdefault('orchestration', {}).setdefault('langgraph', {})['checkpointer'] = checkpointer
             if enable_pr:
                 runner.config.setdefault('agents', {}).setdefault('pr_review', {})['enabled'] = True
 

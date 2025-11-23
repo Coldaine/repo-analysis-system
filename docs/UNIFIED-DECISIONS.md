@@ -411,6 +411,8 @@
 - **Baseline and outputs are mandatory**: The full baseline system runs on every qualifying repo (no lightweight mode). Progressive disclosure templates (Levels 1–4) must be produced and approved; PR comments/status checks should link to these outputs rather than emit raw model text.
 - **Secrets and tokens**: Bitwarden runtime injection (`bws run` / `bitwarden/sm-action@v1`) is the only path for DB/API/LLM credentials. Actions receive only short-lived tokens to call the persistent service; no stored env files or long-lived secrets in runners.
 
+**Implementation Note (LangGraph Runtime Object)**: The Bitwarden runtime injection above is about secrets and run-time environment configuration. It does not automatically imply adoption of the LangGraph `Runtime` object pattern that v1.0 recommends for typed context and store access at node level. The current codebase uses a `config` dictionary and class-level injection; the recommended next-step is to migrate towards creating and passing a LangGraph `Runtime` instance to node invocations to improve type-safety, tracing, and observability.
+
 ---
 
 *This document supersedes earlier phased orchestration notes. Changes require explicit approval and documentation.*

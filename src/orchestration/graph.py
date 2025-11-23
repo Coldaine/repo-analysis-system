@@ -12,6 +12,12 @@ from dataclasses import dataclass, field
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 
+# Optional Postgres checkpointer; may not be available in development environments
+try:
+    from langgraph.checkpoint.postgres import PostgresSaver
+except Exception:
+    PostgresSaver = None
+
 from storage.adapter import StorageAdapter, AnalysisRun, Repository, User
 from repo_manager import RepoManager, SyncResult
 from agents.data_collection import DataCollectionAgent
@@ -28,7 +34,13 @@ logger = get_logger(__name__)
 
 @dataclass
 class GraphState:
-    """Global state for the analysis graph"""
+    """Global state for the analysis graph
+    NOTE: LangGraph v1.0 recommends TypedDict-based state schemas for
+    internal graph state to facilitate reducer annotations (e.g., add_messages)
+    and to avoid accidental snapshot writes across reduced channels. This
+    dataclass works today, but consider migrating to a TypedDict-based schema
+    and utilize `Annotated[...]` reducers for channel-aware updates.
+    """
     # Input configuration
     repos: List[str] = field(default_factory=list)
     user_id: Optional[int] = None
@@ -51,6 +63,10 @@ class GraphState:
     # Error handling
     errors: List[str] = field(default_factory=list)
     current_step: str = "initialization"
+    # TODO: Consider converting channels that act as ordered logs (e.g., messages, visualizations)
+    # to reduced channels using TypedDict + Annotated[...] with appropriate reducers (e.g., add_messages)
+    # so that nodes return deltas instead of full list snapshots. This prevents exponential
+    # duplication if multiple parallel nodes update the same channel.
 
 class RepositoryAnalysisGraph:
     """LangGraph-based repository analysis orchestrator"""
@@ -125,10 +141,14 @@ class RepositoryAnalysisGraph:
             }
         )
         
-        # Add memory for persistence
-        memory = MemorySaver()
-        
-        return workflow.compile(checkpointer=memory)
+        # Add checkpointer for persistence
+        checkpointer_name = self.graph_config.get('checkpointer', 'memory')
+        if checkpointer_name == 'postgres' and PostgresSaver is not None:
+            checkpointer = PostgresSaver(self.storage)
+        else:
+            checkpointer = MemorySaver()
+
+        return workflow.compile(checkpointer=checkpointer)
     
     async def run_analysis(self, repos: List[str], user_id: int = None, 
                         run_type: str = 'full') -> Dict[str, Any]:
@@ -147,7 +167,16 @@ class RepositoryAnalysisGraph:
         
         try:
             # Run the graph
-            config = {"recursion_limit": "none"}  # Prevent infinite recursion
+            # NOTE: LangGraph v1.0 recommends a numeric recursion_limit (default 25)
+            # to prevent runaway loops in cyclic graphs; setting to a numeric value
+            # is preferred to special strings. We default to 25 but allow the
+            # orchestration config to override it.
+            recursion_limit = self.graph_config.get('recursion_limit', 25)
+            config = {"recursion_limit": recursion_limit}
+            # TODO: adopt the 'Runtime' object pattern for dependency injection.
+            # The Runtime pattern centralizes context and stores and improves
+            # type-safety of node signatures. For now, configuration is passed as
+            # a simple dict; consider migrating nodes to accept Runtime[Context].
             result = await self.graph.ainvoke(initial_state, config=config)
             
             logger.info("Analysis completed successfully")

@@ -19,13 +19,13 @@ status: Draft
 **Purpose:** Proactive PR workflow monitoring and pain point detection
 
 **Key Features:**
-- ✅ Runs every 6 hours on zo.computer
+- ✅ Cron-based runs on zo.computer
 - ✅ CCR orchestration with GLM 4.6, MiniMax, Ollama
 - ✅ GitHub API data collection (PRs, CI, conflicts)
 - ✅ Internet search for solutions to detected issues
 - ✅ Mermaid visualizations (timelines, Gantt, flowcharts)
 - ✅ Progressive disclosure (exec summary → drill-downs)
-- ✅ Cost target: <$0.50/day
+- ✅ Cost-aware operation
 - ✅ Lightweight outputs (no verbose reports)
 
 **Pain Points It Addresses:**
@@ -56,7 +56,7 @@ status: Draft
 - ✅ 4 Pillars tracking (Code Quality, Docs, Testing, Adherence to Plan)
 - ✅ Divergence detection from baseline goals
 - ✅ Pre-processing scripts (gather data before AI analysis)
-- ✅ Periodic reports (every 30 min, configurable)
+- ✅ Configurable periodic reports
 - ✅ SQLite for baseline locking
 
 **Key Innovations:**
@@ -82,11 +82,11 @@ status: Draft
 | Feature | Existing | New | Synthesis |
 |---------|----------|-----|-----------|
 | **CCR Integration** | ✅ Orchestration | ✅ Cost routing | Combine both uses |
-| **Periodic Execution** | 6 hours | 30 min | Make configurable |
+| **Periodic Execution** | Cron-based cadence | Configurable cadence | Make configurable |
 | **Repository Analysis** | PR-focused | Holistic | Broader scope |
 | **Concise Outputs** | ✅ | ✅ | Same philosophy |
 | **AI Analysis** | GLM 4.6 | Claude via CCR | Use both |
-| **Cost Optimization** | <$0.50/day | 98% via Z.ai | Even cheaper |
+| **Cost Optimization** | Cost-aware | Cost-aware routing | Maintain efficiency |
 | **GitHub API** | ✅ | ✅ | Shared data source |
 | **Mermaid Visuals** | ✅ | ✅ | Enhanced together |
 
@@ -103,7 +103,7 @@ status: Draft
 | **Agent chaining (sequential)** | Parallel agent spawning | Sequential + parallel = flexible |
 | **Progressive disclosure visuals** | Locked baseline reports | Visuals show baseline divergence |
 | **GLM 4.6 semantic analysis** | Multiple Claude instances | Best model for each task |
-| **6-hour monitoring** | 30-min reporting | Dual-frequency: monitoring + reporting |
+| **Monitoring cadence** | Configurable | Configurable | Dual modes: quick + deep |
 
 **Verdict:** They enhance each other - sum > parts
 
@@ -114,7 +114,7 @@ status: Draft
 | Aspect | Existing | New | Resolution |
 |--------|----------|-----|------------|
 | **Primary Focus** | PR workflows | Overall repo health | **Merge:** Cover both |
-| **Frequency** | 6 hours | 30 minutes | **Make configurable:** Quick (30m) vs. Deep (6h) |
+| **Frequency** | Cron-based | Configurable | **Make configurable:** Quick vs. Deep cadence |
 | **Agent Architecture** | Sequential chaining | True parallelism | **Use both:** Chain for research, parallel for analysis |
 | **Baseline Concept** | None | Locked baselines | **Add:** Existing system benefits from baselines too |
 | **Data Model** | Transient analysis | Persistent baseline DB | **Integrate:** SQLite for baselines, logs for history |
@@ -170,7 +170,7 @@ status: Draft
 - ✅ True parallel agents (from new system)
 - ✅ 4 Pillars + PR metrics (combined)
 - ✅ Mermaid visualizations (both systems)
-- ✅ Configurable frequency (30m quick / 6h deep)
+- ✅ Configurable quick/deep frequency
 
 **Benefits:**
 1. Single system to maintain
@@ -188,13 +188,13 @@ status: Draft
 
 ```
 ┌─────────────────────────────────────────┐
-│  LAYER 1: Continuous Monitoring         │  ← Existing (6h cron)
+│  LAYER 1: Continuous Monitoring         │  ← Existing (cron)
 │  (PR workflows, pain points)            │     Python + GLM 4.6
 └────────────────┬────────────────────────┘
                  │ Feeds findings into
                  ▼
 ┌─────────────────────────────────────────┐
-│  LAYER 2: Baseline & Reporting          │  ← New (30m reports)
+│  LAYER 2: Baseline & Reporting          │  ← New (configurable reports)
 │  (Goals, divergences, health metrics)   │     Node.js + CCR
 └─────────────────────────────────────────┘
          │                       │
@@ -223,7 +223,7 @@ status: Draft
 │  PR Workflow Monitor     │     │  Repository Health &     │
 │  (Existing)              │     │  Goal Tracker (New)      │
 │  - Lightweight           │     │  - Comprehensive         │
-│  - Frequent (6h)         │     │  - Baseline-driven       │
+│  - Frequent cadence      │     │  - Baseline-driven       │
 │  - PR-focused            │     │  - 4 Pillars             │
 └──────────────────────────┘     └──────────────────────────┘
          │                                  │
@@ -269,7 +269,7 @@ status: Draft
 
 **Phase 3: Enhancement (Combine Strengths)**
 - Add "PR Health" as 5th pillar (existing's focus)
-- Implement dual-frequency: Quick (30m) + Deep (6h)
+- Implement dual-frequency: Quick + Deep modes
 - Merge visualization approaches
 - Unified reporting format
 
@@ -325,8 +325,7 @@ status: Draft
    - Drill-down capabilities (existing)
 
 8. **Scheduling**
-   - Quick mode: 30 minutes (new)
-   - Deep mode: 6 hours (existing)
+   - Quick mode and deep mode cadences
    - Configurable per-repo
 
 ---
@@ -351,21 +350,6 @@ status: Draft
 
 ---
 
-## 💰 **Cost Comparison**
-
-### **Current (Two Systems)**
-- Existing: <$0.50/day (GLM 4.6, every 6h)
-- New: ~$0.12/run × 48 runs/day = $5.76/day (Claude via Z.ai, every 30m)
-- **Total: ~$6.26/day**
-
-### **Unified (Optimized)**
-- Quick runs (30m): Pre-processing only, no AI = $0
-- Deep runs (6h): Full analysis via CCR → Z.ai = $0.12 × 4 = $0.48/day
-- PR monitoring: GLM 4.6 for pain points = $0.10/day
-- **Total: ~$0.58/day** (90% savings!)
-
----
-
 ## ✅ **Verdict: HIGHLY COMPATIBLE - MERGE RECOMMENDED**
 
 ### **Summary:**
@@ -381,7 +365,7 @@ status: Draft
 1. ✅ **Merge into unified system** using new architecture as foundation
 2. ✅ **Integrate all existing features** as specialized capabilities
 3. ✅ **Implement dual-frequency** scheduling (quick + deep)
-4. ✅ **Keep cost under $1/day** through optimized scheduling
+4. ✅ **Keep resource usage efficient** through optimized scheduling
 
 **Next Steps:**
 1. Review this synthesis analysis
@@ -391,6 +375,6 @@ status: Draft
 
 ---
 
-**The vision: One intelligent, cost-effective system that monitors PR workflows, tracks goals, detects divergences, and provides actionable insights through beautiful visualizations - all for <$1/day.**
+**The vision: One intelligent, resource-aware system that monitors PR workflows, tracks goals, detects divergences, and provides actionable insights through beautiful visualizations.**
 
 🎯 **This is achievable and worthwhile.**
