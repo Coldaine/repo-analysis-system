@@ -92,8 +92,44 @@ The original prototype has been archived in [`archive/`](archive/) with all comp
 - PostgreSQL 12+
 - Docker & Docker Compose
 - LangGraph (optional, fallback available)
+- Bitwarden Secrets Manager CLI (`bws`) - for secrets management
 
-### 1. Setup Database
+### 1. Setup Secrets Management (Bitwarden)
+
+All API keys and secrets are managed securely using [Bitwarden Secrets Manager](https://bitwarden.com/products/secrets-manager/).
+
+**Required Secrets:**
+- `GITHUB_TOKEN` - GitHub API access
+- `GLM_API_KEY` - GLM 4.6 AI model
+- `GITHUB_OWNER` - Repository owner (optional)
+- `MINIMAX_API_KEY` - MiniMax AI model (optional)
+
+**Setup:**
+
+```bash
+# Install bws CLI (if not already installed)
+# Download from: https://github.com/bitwarden/sdk/releases
+
+# Set your Bitwarden access token (once)
+$env:BWS_ACCESS_TOKEN = "your_token_here"
+
+# Test secrets are accessible
+bws run -- powershell -File check-secrets.ps1
+```
+
+**Usage:**
+
+```bash
+# Run any command with secrets injected
+bws run -- python scripts/run_graph.py
+
+# Secrets are automatically injected as environment variables
+# No .env files or manual configuration needed!
+```
+
+See [docs/Bitwarden-Secrets-Integration.md](docs/Bitwarden-Secrets-Integration.md) for complete setup guide.
+
+### 2. Setup Database
 
 ```bash
 # Start PostgreSQL and Redis

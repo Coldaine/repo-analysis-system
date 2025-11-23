@@ -9,7 +9,7 @@
     the specified Bitwarden project.
 
 .PARAMETER ProjectName
-    Name of the Bitwarden Secrets Manager project (default: "Repo Analysis System")
+    Name of the Bitwarden Secrets Manager project (default: "API Keys - Hot")
 
 .PARAMETER DryRun
     Show what would be created without actually creating secrets
@@ -18,7 +18,7 @@
     .\migrate-to-bitwarden.ps1
 
 .EXAMPLE
-    .\migrate-to-bitwarden.ps1 -ProjectName "Repo Analysis System" -DryRun
+    .\migrate-to-bitwarden.ps1 -ProjectName "Search & Research" -DryRun
 
 .NOTES
     Prerequisites:
@@ -29,7 +29,7 @@
 #>
 
 param(
-    [string]$ProjectName = "Repo Analysis System",
+    [string]$ProjectName = "API Keys - Hot",
     [switch]$DryRun
 )
 
