@@ -1,34 +1,24 @@
-# Documentation Index
+# Documentation Index (Canonical)
 
-This folder contains comprehensive documentation for the Agentic Repository Analysis System.
+The live, non-contradictory docs are under `docs/` (this folder). Everything else in `archive/` is historical unless explicitly referenced.
 
-## Architecture & Design
+## Canonical Docs
+- `Overview-and-Goals.md`
+- `System-Architecture.md`
+- `Agents-and-Workflows.md`
+- `Runtime-and-Automation.md`
+- `Config-and-Secrets.md`
+- `Observability-and-Reporting.md`
+- `Implementation-Status-and-Roadmap.md`
+- `Templates-and-Examples.md`
+- `Implementation-Anchor-Goals.md`
+- `UNIFIED-DECISIONS.md`
 
-- **[Automated Cron Analysis System Design](automated-cron-analysis-system-design.md)** - System architecture and cron job design
-- **[Complete Prototype Overview](complete-prototype-overview.md)** - Full prototype implementation details
-
-## Analysis & Insights
-
-- **[Current Analysis Summary](current-analysis-summary.md)** - Latest analysis results and findings
-- **[Initial PR Review Analysis](initial-pr-review-analysis.md)** - Pull request review analysis methodology
-
-## Visualization & Progress
-
-- **[Progress Visuals Corpus](progress-visuals-corpus.md)** - Collection of visualization examples
-- **[Visual Timeline Proposals](visual-timeline-proposals.md)** - Timeline visualization specifications
-
-## Planning & Requirements
-
-- **[Proposed Needs](proposed-needs.md)** - Feature requests and system requirements
-- **[Unified Decisions](UNIFIED-DECISIONS.md)** - Architecture decision records and system design choices
-
-## Security & Configuration
-
-- **[Bitwarden Secrets Integration](Bitwarden-Secrets-Integration.md)** - Secure secrets management with Bitwarden Secrets Manager
+## Historical / Reference
+- `archive/vision-v1-cron/` (cron-centric v1)
+- `archive/vision-v2-explorations/` (early v2 explorations)
+- `archive/observability-reviews/`, `archive/visual-design-history/`, `archive/run-reports/`, `archive/roadmap-history/`
 
 ## Quick Links
-
-- [Main README](../README.md) - Project overview and setup instructions
-- [Configuration](../config.yaml) - System configuration file
-- [Logs Directory](../logs/) - Analysis run logs
-- [Review Logging](../review_logging/) - Generated visualizations and summaries
+- [Main README](../README.md)
+- [Configuration](../config.yaml)
