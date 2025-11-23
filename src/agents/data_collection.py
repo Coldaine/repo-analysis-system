@@ -10,8 +10,8 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
 
-from storage.adapter import StorageAdapter, Repository, PullRequest
-from models.model_manager import ModelManager
+from src.storage.adapter import StorageAdapter, Repository, PullRequest
+from src.models.model_manager import ModelManager
 
 logger = logging.getLogger(__name__)
 

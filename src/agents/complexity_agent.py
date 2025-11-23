@@ -14,13 +14,13 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
-from analysis.complexity_analyzer import (
+from src.analysis.complexity_analyzer import (
     ComplexityAnalyzer,
     ComplexityReport,
     FileComplexity,
     FunctionComplexity,
 )
-from storage.adapter import StorageAdapter
+from src.storage.adapter import StorageAdapter
 
 logger = logging.getLogger(__name__)
 

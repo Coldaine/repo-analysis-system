@@ -13,13 +13,13 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from pathlib import Path
 
-from security.vulnerability_scanner import (
+from src.security.vulnerability_scanner import (
     VulnerabilityScanner,
     VulnerabilityReport,
     Vulnerability,
     Severity,
 )
-from storage.adapter import StorageAdapter
+from src.storage.adapter import StorageAdapter
 
 logger = logging.getLogger(__name__)
 

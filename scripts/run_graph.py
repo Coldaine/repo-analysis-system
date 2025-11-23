@@ -4,7 +4,6 @@ Repository Analysis System - New CLI Entry Point
 Replaces the prototype script with LangGraph orchestration
 """
 
-import os
 import sys
 import json
 import argparse
@@ -13,12 +12,9 @@ import logging
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-from repo_manager import RepoManager
-from utils.config import ConfigLoader
-from utils.logging import setup_logging
+from src.repo_manager import RepoManager
+from src.utils.config import ConfigLoader
+from src.utils.logging import setup_logging
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +49,7 @@ class GraphRunner:
         logger.info("Initializing repository analysis system")
         
         # Initialize storage adapter
-        from storage.adapter import create_storage_adapter
+        from src.storage.adapter import create_storage_adapter
         db_config = self.config.get('database', {})
         self.storage = create_storage_adapter(db_config)
         
@@ -63,7 +59,7 @@ class GraphRunner:
             logger.warning(f"Storage health check failed: {health}")
         
         # Initialize graph
-        from orchestration.graph import RepositoryAnalysisGraph
+        from src.orchestration.graph import RepositoryAnalysisGraph
         self.graph = RepositoryAnalysisGraph(self.config, self.storage)
         
         logger.info("System initialized successfully")

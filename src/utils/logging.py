@@ -3,9 +3,12 @@ Logging Setup
 Enhanced logging configuration for the new architecture
 """
 
-import os
 import logging
 import sys
+import uuid
+import functools
+import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional
 
@@ -87,3 +90,40 @@ def setup_logging(level: str | int = "INFO", log_file: Optional[str] = None,
     main_logger.info(f"Logging initialized at level: {resolved_level}")
     if log_file:
         main_logger.info(f"Log file: {log_path}")
+
+
+def get_logger(name: str | None = None) -> logging.Logger:
+    """Return a module-specific logger."""
+    return logging.getLogger(name or __name__)
+
+
+@contextmanager
+def correlation_context(run_id: str | None = None):
+    """Context manager that yields a correlation ID for structured logs."""
+    run_id = run_id or str(uuid.uuid4())
+    try:
+        yield run_id
+    finally:
+        pass
+
+
+def timer_decorator(func):
+    """Decorator that logs the execution time of the wrapped function."""
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        try:
+            return func(*args, **kwargs)
+        finally:
+            end = time.time()
+            get_logger(func.__module__).debug(
+                "%s took %.4f seconds", func.__name__, end - start
+            )
+
+    return wrapper
+
+
+def correlation_id() -> str:
+    """Generate a new correlation identifier."""
+    return str(uuid.uuid4())
