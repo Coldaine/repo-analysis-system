@@ -7,7 +7,7 @@ Implemented as a Sub-Graph with Functional Wrapper Encapsulation.
 import logging
 import subprocess
 from typing import Dict, List, Any, Optional, TypedDict, Annotated, Union
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 from langchain_core.tools import tool
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode, tools_condition
@@ -142,8 +142,7 @@ Output Format:
     
     # Inject system prompt if this is the first message
     messages = state["messages"]
-    if not any(isinstance(m, BaseMessage) and hasattr(m, 'type') and m.type == 'system' for m in messages):
-        from langchain_core.messages import SystemMessage
+    if not any(isinstance(m, SystemMessage) for m in messages):
         messages = [SystemMessage(content=system_prompt)] + list(messages)
     
     return {"messages": [model_with_tools.invoke(messages)]}
