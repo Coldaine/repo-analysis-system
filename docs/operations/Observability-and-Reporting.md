@@ -65,3 +65,34 @@ Standard templates (Status Report, Repo Init) are defined in `docs/Templates-and
 - Configure tracing (LangSmith/OpenTelemetry) to capture node/tool spans with tags: repo, job ID, run type, recursion_limit breaches.
 - Emit scores/evaluations on spans where applicable (e.g., report quality, visualization quality) for later analysis.
 - Tag errors/failures with agent/node identifiers; record retries/backoff.
+
+## 🛰️ Tracing & LangSmith (Examples)
+
+We integrate distributed traces via OpenTelemetry and annotate spans with LangGraph metadata. Example instrumentation in Python:
+
+```python
+from opentelemetry import trace
+from opentelemetry.trace import Span
+
+tracer = trace.get_tracer(__name__)
+
+def instrumented_node(state, runtime):
+	with tracer.start_as_current_span("agent_node_execute") as span:
+		span.set_attribute("repo", runtime.context.repository)
+		span.set_attribute("thread_id", runtime.context.thread_id)
+		span.set_attribute("agent", "forensics")
+		# Execute node work
+		result = do_work(state)
+		# Attach a score if applicable
+		span.set_attribute("score.feedback", 0.87)
+		return result
+```
+
+LangSmith integration: ensure LangSmith SDK is configured to read OTel traces or use a LangSmith client to upload trace metadata and scores.
+
+```python
+# Attach a feedback score to a LangSmith trace (pseudo-code)
+langsmith_client = LangSmithClient(api_key=LANGSMITH_API_KEY)
+langsmith_client.tag_trace(trace_id, {"satisfaction": 0.9, "quality": "high"})
+```
+
