@@ -258,11 +258,15 @@ class ComplexityAnalyzer:
                 result.complexity, nesting_depth
             )
 
+            # Use the higher of cyclomatic and cognitive complexity to better
+            # capture deep nesting as part of the primary complexity score.
+            effective_complexity = max(result.complexity, cognitive_complexity)
+
             func_complexity = FunctionComplexity(
                 name=func_name,
                 line_number=result.lineno,
-                complexity=result.complexity,
-                rank=cc_rank(result.complexity),
+                complexity=effective_complexity,
+                rank=cc_rank(effective_complexity),
                 nesting_depth=nesting_depth,
                 cognitive_complexity=cognitive_complexity,
             )
