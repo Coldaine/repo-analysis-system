@@ -56,6 +56,12 @@
 - Immediate response to changes (via webhooks)
 - Fallback prevents missed events
 
+**Deployment Clarification (Nov 23, 2025)**:
+- GitHub App/Action remains a *thin event forwarder*: it only validates webhook signatures (push, PR, issue, CI) and relays payloads plus the 30-minute dormant audit ping to our service; it never runs LangGraph or accesses persistent secrets.
+- A long-lived runner (VM/systemd service on zo.computer) hosts the repo cache, PostgreSQL connectivity, Bitwarden `bws run` context, and the Node.js deterministic pre-processing scripts. This runner pulls jobs from a queue, applies backpressure/deduplication, and executes `scripts/run_graph.py` with the correct event metadata.
+- Dormant-audit scheduling also lives inside this runner (cron/systemd timer), keeping parity with Decision 3 while avoiding Docker Compose requirements.
+- GitHub outputs (status checks, progressive-disclosure comment links) are emitted by the runner after LangGraph finishes, ensuring Level 1/2/3 artifacts stay aligned with the approved templates.
+
 **TODO**: Map each agent's responsibilities and triggers
 - Which agents run on which events?
 - What constitutes a "change" requiring analysis?
@@ -247,12 +253,42 @@
 - GitHub Actions native integration with secret masking
 - Prevents secrets in shell history, logs, or process lists
 
-**Implementation Status**:
+**Implementation Status**: ✅ **COMPLETE** (November 23, 2025)
 - Documentation: ✅ Complete (see `docs/Bitwarden-Secrets-Integration.md`)
 - Code changes: ✅ None required (already uses env vars)
-- Migration: ⏳ Pending manual Bitwarden setup
+- Bitwarden Setup: ✅ Complete (multi-project access configured)
+- Secrets Migration: ✅ Complete (4 core secrets added to Bitwarden)
+- Testing: ✅ Verified (all secrets injecting properly via `bws run`)
 
-**Reference**: See detailed implementation guide in `docs/Bitwarden-Secrets-Integration.md`
+**Actual Implementation Details**:
+
+**Multi-Project Strategy** (Implemented):
+- Uses existing Bitwarden organization projects instead of creating new dedicated project
+- Machine account has read access to 3 projects:
+  - `API Keys - Hot` (GITHUB_TOKEN, GITHUB_OWNER)
+  - `AI Models` (GLM_API_KEY, MINIMAX_API_KEY)
+  - `Search & Research` (future expansion)
+
+**Secrets Created in Bitwarden** (November 23, 2025):
+- ✅ `GITHUB_TOKEN` - Extracted from gh CLI (gho_****)
+- ✅ `GLM_API_KEY` - Alias for Z_AI_API_KEY (GLM 4.6 API)
+- ✅ `MINIMAX_API_KEY` - Via OpenRouter (sk-or-v1-****)
+- ✅ `GITHUB_OWNER` - Set to "Coldaine"
+
+**Testing & Validation**:
+- ✅ `bws` CLI installed and operational
+- ✅ `BWS_ACCESS_TOKEN` configured (94 chars)
+- ✅ Test scripts created: `check-secrets.ps1`, `test-bws-inject.ps1`
+- ✅ All 4 required secrets verified injecting via `bws run` wrapper
+- ✅ README.md updated with Bitwarden setup instructions
+
+**Files Added**:
+- `check-secrets.ps1` - Verify secrets status
+- `test-bws-inject.ps1` - Test bws run wrapper
+- `test_bws_secrets.ps1` - Legacy test script
+- `migrate-to-bitwarden.ps1` - Migration helper (ready for future secrets)
+
+**Reference**: See complete implementation guide in `docs/Bitwarden-Secrets-Integration.md`
 
 ---
 
@@ -278,16 +314,20 @@
 - [ ] Generate sample reports
 - [ ] Review and approve formats
 
-### 4. Secrets Management Setup (Decision 11)
-- [ ] Install Bitwarden Secrets Manager CLI (`bws`)
-- [ ] Create "Repo Analysis System" project in Bitwarden
-- [ ] Create machine account and generate access token
-- [ ] Migrate all 6 secrets to Bitwarden project
-- [ ] Configure local development with `bws run`
-- [ ] Update cron/scheduled tasks with bws wrapper
-- [ ] Setup GitHub Actions with `bitwarden/sm-action@v1`
-- [ ] Test secret injection in all environments
-- [ ] Remove old environment variable configurations
+### 4. Secrets Management Setup (Decision 11) - ✅ **COMPLETE**
+- [x] Install Bitwarden Secrets Manager CLI (`bws`) - ✅ Installed
+- [x] ~~Create "Repo Analysis System" project~~ - ✅ Using existing multi-project approach instead
+- [x] Machine account access configured - ✅ Read access to 3 projects (API Keys - Hot, AI Models, Search & Research)
+- [x] Migrate core secrets to Bitwarden - ✅ 4/6 secrets migrated (GITHUB_TOKEN, GLM_API_KEY, MINIMAX_API_KEY, GITHUB_OWNER)
+- [x] Configure local development with `bws run` - ✅ Tested and working
+- [x] Create test scripts - ✅ `check-secrets.ps1`, `test-bws-inject.ps1` created
+- [x] Update README.md - ✅ Bitwarden setup section added
+- [ ] Update cron/scheduled tasks with bws wrapper - ⏳ Pending (when cron jobs are configured)
+- [ ] Setup GitHub Actions with `bitwarden/sm-action@v1` - ⏳ Pending (when CI/CD is configured)
+- [x] Test secret injection locally - ✅ All 4 secrets verified injecting properly
+- [ ] Remove old environment variable configurations - ⏳ Optional (no conflicts)
+
+**Note**: GOOGLE_SEARCH_KEY and GOOGLE_CX remain optional and will be added when needed.
 
 ---
 
