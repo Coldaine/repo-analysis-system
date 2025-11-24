@@ -6,51 +6,57 @@ Enhanced graph-based orchestration for repository analysis with LangGraph integr
 import os
 import logging
 from datetime import datetime, timezone
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass, field
+from typing import Dict, List, Any, Optional, TypedDict
+from urllib.parse import quote_plus
 
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 
-from storage.adapter import StorageAdapter, AnalysisRun, Repository, User
-from repo_manager import RepoManager, SyncResult
-from agents.data_collection import DataCollectionAgent
-from models.model_manager import ModelManager
-from agents.visualization import VisualizationAgent
-from agents.output import OutputAgent
-from agents.complexity_agent import ComplexityAgent
-from agents.security_agent import SecurityAgent
-from agents.pr_review import PRReviewAgent
-from utils.logging import get_logger, correlation_id, timer_decorator, correlation_context
+# Optional Postgres checkpointer; may not be available in development environments
+try:
+    from langgraph.checkpoint.postgres import PostgresSaver
+except Exception:
+    PostgresSaver = None
+
+from src.storage.adapter import StorageAdapter
+from src.repo_manager import RepoManager, SyncResult
+from src.agents.data_collection import DataCollectionAgent
+from src.models.model_manager import ModelManager
+from src.agents.visualization import VisualizationAgent
+from src.agents.output import OutputAgent
+from src.agents.complexity_agent import ComplexityAgent
+from src.agents.security_agent import SecurityAgent
+from src.agents.pr_review import PRReviewAgent
+from src.utils.logging import get_logger, correlation_context
 
 # Replace standard logging with enhanced structured logging
 logger = get_logger(__name__)
 
-@dataclass
-class GraphState:
-    """Global state for the analysis graph"""
+class GraphState(TypedDict, total=False):
+    """Global state passed between LangGraph nodes."""
+
     # Input configuration
-    repos: List[str] = field(default_factory=list)
-    user_id: Optional[int] = None
-    run_type: str = 'full'
+    repos: List[str]
+    user_id: Optional[int]
+    run_type: str
 
     # Processing state
-    changed_repos: List[str] = field(default_factory=list)
-    baselines: Dict[str, Any] = field(default_factory=dict)
-    per_repo_results: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    changed_repos: List[str]
+    baselines: Dict[str, Any]
+    per_repo_results: Dict[str, Dict[str, Any]]
 
     # Code quality analysis state
-    complexity_results: Dict[str, Any] = field(default_factory=dict)
-    security_results: Dict[str, Any] = field(default_factory=dict)
+    complexity_results: Dict[str, Any]
+    security_results: Dict[str, Any]
 
     # Output state
-    visualizations: List[Dict[str, Any]] = field(default_factory=list)
-    summary: Dict[str, Any] = field(default_factory=dict)
-    metrics: Dict[str, Any] = field(default_factory=dict)
+    visualizations: List[Dict[str, Any]]
+    summary: Dict[str, Any]
+    metrics: Dict[str, Any]
 
-    # Error handling
-    errors: List[str] = field(default_factory=list)
-    current_step: str = "initialization"
+    # Error handling and orchestration metadata
+    errors: List[str]
+    current_step: str
 
 class RepositoryAnalysisGraph:
     """LangGraph-based repository analysis orchestrator"""
@@ -109,7 +115,6 @@ class RepositoryAnalysisGraph:
         workflow.add_edge("collect_data", "analyze_complexity")
         workflow.add_edge("analyze_complexity", "analyze_security")
         workflow.add_edge("analyze_security", "analyze_repositories")
-        workflow.add_edge("analyze_repositories", "generate_visualizations")
         workflow.add_edge("generate_visualizations", "review_pull_requests")
         workflow.add_edge("generate_visualizations", "generate_report")
         workflow.add_edge("review_pull_requests", "generate_report")
@@ -119,16 +124,94 @@ class RepositoryAnalysisGraph:
         # Add conditional edges for error handling
         workflow.add_conditional_edges(
             "analyze_repositories",
+            self._analysis_routing_condition,
             {
                 "success": "generate_visualizations",
                 "error": "finalize"
             }
         )
         
-        # Add memory for persistence
-        memory = MemorySaver()
-        
-        return workflow.compile(checkpointer=memory)
+        checkpointer = self._build_checkpointer()
+
+        return workflow.compile(checkpointer=checkpointer)
+
+    @staticmethod
+    def _analysis_routing_condition(state: GraphState) -> str:
+        """Route to finalize if any errors were recorded during repo analysis."""
+        errors = state.get("errors") or []
+        return "error" if errors else "success"
+
+    def _build_checkpointer(self):
+        """Select the configured LangGraph checkpointer."""
+        checkpointer_name = self.graph_config.get('checkpointer', 'memory')
+        checkpointer_name = (checkpointer_name or 'memory').lower()
+
+        if checkpointer_name == 'postgres' and PostgresSaver is not None:
+            conn_string = self._postgres_connection_url()
+            if conn_string:
+                try:
+                    return PostgresSaver.from_conn_string(conn_string)
+                except Exception as exc:
+                    logger.warning(
+                        "Postgres checkpointer unavailable (%s); falling back to MemorySaver",
+                        exc,
+                    )
+            else:
+                logger.warning("Postgres checkpointer requested but database config missing; using MemorySaver")
+
+        return MemorySaver()
+
+    def _postgres_connection_url(self) -> Optional[str]:
+        """Build a psycopg-compatible connection string from config."""
+        db_cfg = self.config.get('database', {}) or {}
+        host = db_cfg.get('host') or os.getenv('POSTGRES_HOST')
+        name = db_cfg.get('name') or os.getenv('POSTGRES_DB')
+        user = db_cfg.get('user') or os.getenv('POSTGRES_USER')
+        password = db_cfg.get('password') or os.getenv('POSTGRES_PASSWORD') or ''
+        port = db_cfg.get('port') or os.getenv('POSTGRES_PORT', 5432)
+
+        if not (host and name and user):
+            return None
+
+        auth = quote_plus(str(user))
+        if password:
+            auth = f"{auth}:{quote_plus(str(password))}"
+
+        return f"postgresql://{auth}@{host}:{port}/{name}"
+
+    def _build_run_config(
+        self,
+        recursion_limit: int,
+        run_id: str,
+        user_id: Optional[int],
+        run_type: str,
+    ) -> Dict[str, Any]:
+        """Construct the config payload passed into LangGraph Runtime."""
+
+        metadata = {
+            "run_id": run_id,
+            "run_type": run_type,
+        }
+        if user_id is not None:
+            metadata["user_id"] = user_id
+
+        configurable = {
+            "run_type": run_type,
+        }
+        if user_id is not None:
+            configurable["user_id"] = user_id
+
+        config: Dict[str, Any] = {
+            "recursion_limit": recursion_limit,
+            "metadata": metadata,
+            "configurable": configurable,
+        }
+
+        tags = self.graph_config.get('tags')
+        if tags:
+            config["tags"] = tags
+
+        return config
     
     async def run_analysis(self, repos: List[str], user_id: int = None, 
                         run_type: str = 'full') -> Dict[str, Any]:
@@ -138,20 +221,41 @@ class RepositoryAnalysisGraph:
         # Graph must be available; run
         
         # Initialize state
-        initial_state = GraphState(
-            repos=repos,
-            user_id=user_id,
-            run_type=run_type,
-            current_step="initialization"
-        )
+        initial_state: GraphState = {
+            "repos": repos,
+            "user_id": user_id,
+            "run_type": run_type,
+            "current_step": "initialization",
+            "changed_repos": [],
+            "baselines": {},
+            "per_repo_results": {},
+            "complexity_results": {},
+            "security_results": {},
+            "visualizations": [],
+            "summary": {},
+            "metrics": {},
+            "errors": [],
+        }
         
         try:
-            # Run the graph
-            config = {"recursion_limit": "none"}  # Prevent infinite recursion
-            result = await self.graph.ainvoke(initial_state, config=config)
-            
+            recursion_limit = self.graph_config.get('recursion_limit', 25)
+            with correlation_context() as run_id:
+                config = self._build_run_config(
+                    recursion_limit=recursion_limit,
+                    run_id=run_id,
+                    user_id=user_id,
+                    run_type=run_type,
+                )
+
+                result = await self.graph.ainvoke(initial_state, config=config)
+
             logger.info("Analysis completed successfully")
-            return result
+            return {
+                "status": "completed",
+                "state": result,
+                "run_id": run_id,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
             
         except Exception as e:
             logger.error(f"Analysis failed: {e}")
@@ -161,82 +265,39 @@ class RepositoryAnalysisGraph:
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
-    async def _run_fallback_orchestration(self, repos: List[str], user_id: int = None,
-                                   run_type: str = 'full') -> Dict[str, Any]:
-        """Fallback orchestration without LangGraph"""
-        logger.info("Running fallback orchestration")
-
-        try:
-            # Step 1: Initialize
-            state = GraphState(
-                repos=repos,
-                user_id=user_id,
-                run_type=run_type,
-                current_step="initialization"
-            )
-
-            # Step 2: Detect changes (simplified)
-            state = await self._detect_changes(state)
-
-            # Step 3: Collect data
-            state = await self._collect_repository_data(state)
-
-            # Step 4: Analyze repositories
-            state = await self._analyze_repositories(state)
-
-            # Step 5: Generate visualizations
-            state = await self._generate_visualizations(state)
-
-            # Step 6: Generate report
-            state = await self._generate_report(state)
-
-            # Step 7: Finalize
-            state = await self._finalize_analysis(state)
-
-            return {
-                "status": "completed",
-                "state": state,
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
-
-        except Exception as e:
-            logger.error(f"Fallback orchestration failed: {e}")
-            return {
-                "status": "failed",
-                "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
-
     async def _initialize_analysis(self, state: GraphState) -> GraphState:
         """Initialize the analysis workflow"""
         logger.info("Step: Initialize analysis")
-        
-        state.current_step = "initialization"
-        state.errors = []
-        
-        # Create analysis run in database
+        errors: List[str] = []
+        metrics = dict(state.get("metrics", {}))
+
         try:
             run = self.storage.create_analysis_run(
-                repo_id=None,  # Will be set per repo
-                run_type=state.run_type,
-                created_by=state.user_id
+                repo_id=None,
+                run_type=state.get("run_type", "full"),
+                created_by=state.get("user_id"),
             )
-            state.metrics['analysis_run_id'] = run.id if run else None
-            logger.info(f"Created analysis run: {run.id}")
-            
+            metrics["analysis_run_id"] = getattr(run, "id", None)
+            if run:
+                logger.info("Created analysis run: %s", run.id)
         except Exception as e:
-            state.errors.append(f"Failed to create analysis run: {e}")
-        
-        return state
+            errors.append(f"Failed to create analysis run: {e}")
+
+        return {
+            "current_step": "initialization",
+            "errors": errors,
+            "metrics": metrics,
+        }
 
     async def _sync_repositories(self, state: GraphState) -> GraphState:
         """Ensure local mirrors are synced for configured repositories"""
         logger.info("Step: Sync repositories")
-        state.current_step = "sync_repositories"
-        
+        errors = list(state.get("errors", []))
+        metrics = dict(state.get("metrics", {}))
+
         try:
-            sync_result: SyncResult = self.repo_manager.sync(state.repos)
-            state.metrics['sync'] = {
+            sync_result: SyncResult = self.repo_manager.sync(state.get("repos", []))
+            metrics['sync'] = {
                 'synced': sync_result.synced,
                 'cloned': sync_result.cloned,
                 'updated': sync_result.updated,
@@ -245,177 +306,195 @@ class RepositoryAnalysisGraph:
             }
             logger.info(f"Repositories synced: {sync_result.synced} (cloned {sync_result.cloned}, updated {sync_result.updated})")
         except Exception as e:
-            state.errors.append(f"Repository sync failed: {e}")
+            errors.append(f"Repository sync failed: {e}")
             logger.error(f"Repository sync failed: {e}")
         
-        return state
+        return {
+            "current_step": "sync_repositories",
+            "metrics": metrics,
+            "errors": errors,
+        }
     
     async def _detect_changes(self, state: GraphState) -> GraphState:
         """Detect changes in repositories"""
         logger.info("Step: Detect changes")
         
-        state.current_step = "detect_changes"
-        state.changed_repos = []
-        
-        # For now, assume all repos need analysis
-        # In a real implementation, this would check git status, webhooks, etc.
-        state.changed_repos = state.repos.copy()
-        
-        logger.info(f"Detected changes in {len(state.changed_repos)} repositories")
-        return state
+        repos = state.get("repos", [])
+        changed_repos = list(repos)
+        logger.info("Detected changes in %d repositories", len(changed_repos))
+
+        return {
+            "current_step": "detect_changes",
+            "changed_repos": changed_repos,
+        }
     
     async def _collect_repository_data(self, state: GraphState) -> GraphState:
         """Collect repository data"""
         logger.info("Step: Collect repository data")
-        
-        state.current_step = "collect_data"
-        
+
+        errors = list(state.get("errors", []))
+        per_repo_results: Dict[str, Dict[str, Any]] = {}
+
         try:
-            # Collect data for all repositories
             repo_data_list = self.data_agent.collect_repository_data(
-                state.repos, 
-                state.user_id
+                state.get("repos", []),
+                state.get("user_id"),
             )
-            
-            # Store repository data and create analysis runs per repo
-            state.per_repo_results = {}
+
             for repo_data in repo_data_list:
                 repo_key = f"{repo_data.owner}/{repo_data.name}"
-                state.per_repo_results[repo_key] = {
+                per_repo_results[repo_key] = {
                     'repository_data': repo_data,
                     'analysis_results': None,
-                    'visualizations': None
+                    'visualizations': None,
                 }
-            
-            logger.info(f"Collected data for {len(repo_data_list)} repositories")
-            
-        except Exception as e:
-            state.errors.append(f"Data collection failed: {e}")
 
-        return state
+            logger.info("Collected data for %d repositories", len(repo_data_list))
+
+        except Exception as e:
+            errors.append(f"Data collection failed: {e}")
+
+        return {
+            "current_step": "collect_data",
+            "per_repo_results": per_repo_results,
+            "errors": errors,
+        }
 
     async def _analyze_complexity(self, state: GraphState) -> GraphState:
         """Analyze code complexity for repositories"""
         logger.info("Step: Analyze complexity")
 
-        state.current_step = "analyze_complexity"
+        errors = list(state.get("errors", []))
+        metrics = state.get("metrics", {})
+        analysis_run_id = metrics.get('analysis_run_id')
+        per_repo_results = {
+            key: value.copy() if isinstance(value, dict) else value
+            for key, value in state.get("per_repo_results", {}).items()
+        }
+        complexity_results = dict(state.get("complexity_results", {}))
 
         try:
-            analysis_run_id = state.metrics.get('analysis_run_id')
-
-            for repo_key, repo_result in state.per_repo_results.items():
-                repo_data = repo_result['repository_data']
-
-                # Check if repository has a local path for analysis
-                # For now, we'll assume the repo needs to be cloned
-                # In production, this would integrate with git clone
-                repo_path = repo_data.path
+            for repo_key, repo_result in per_repo_results.items():
+                repo_data = repo_result.get('repository_data')
+                repo_path = getattr(repo_data, 'path', None)
 
                 if repo_path and os.path.exists(repo_path):
-                    # Analyze complexity
                     complexity_result = self.complexity_agent.analyze_repository(
                         repo_path=repo_path,
                         repo_name=repo_key,
                         analysis_run_id=analysis_run_id,
                     )
-
-                    # Store results
-                    state.complexity_results[repo_key] = complexity_result.to_dict()
-                    repo_result['complexity_analysis'] = complexity_result.to_dict()
-
+                    serialized = complexity_result.to_dict()
+                    complexity_results[repo_key] = serialized
+                    repo_result['complexity_analysis'] = serialized
                     logger.info(
-                        f"Complexity analysis for {repo_key}: "
-                        f"{complexity_result.metrics.get('total_hotspots', 0)} hotspots found"
+                        "Complexity analysis for %s: %s hotspots found",
+                        repo_key,
+                        complexity_result.metrics.get('total_hotspots', 0),
                     )
                 else:
-                    logger.warning(f"Repository path not found for {repo_key}, skipping complexity analysis")
+                    logger.warning("Repository path not found for %s, skipping complexity analysis", repo_key)
 
         except Exception as e:
-            logger.error(f"Complexity analysis failed: {e}")
-            state.errors.append(f"Complexity analysis failed: {e}")
+            logger.error("Complexity analysis failed: %s", e)
+            errors.append(f"Complexity analysis failed: {e}")
 
-        return state
+        return {
+            "current_step": "analyze_complexity",
+            "per_repo_results": per_repo_results,
+            "complexity_results": complexity_results,
+            "errors": errors,
+        }
 
     async def _analyze_security(self, state: GraphState) -> GraphState:
         """Scan repositories for security vulnerabilities"""
         logger.info("Step: Analyze security")
 
-        state.current_step = "analyze_security"
+        errors = list(state.get("errors", []))
+        metrics = state.get("metrics", {})
+        analysis_run_id = metrics.get('analysis_run_id')
+        per_repo_results = {
+            key: value.copy() if isinstance(value, dict) else value
+            for key, value in state.get("per_repo_results", {}).items()
+        }
+        security_results = dict(state.get("security_results", {}))
 
         try:
-            analysis_run_id = state.metrics.get('analysis_run_id')
-
-            for repo_key, repo_result in state.per_repo_results.items():
-                repo_data = repo_result['repository_data']
-
-                # Check if repository has a local path for analysis
-                repo_path = repo_data.path
+            for repo_key, repo_result in per_repo_results.items():
+                repo_data = repo_result.get('repository_data')
+                repo_path = getattr(repo_data, 'path', None)
 
                 if repo_path and os.path.exists(repo_path):
-                    # Scan for vulnerabilities
                     security_result = self.security_agent.analyze_repository(
                         repo_path=repo_path,
                         repo_name=repo_key,
                         analysis_run_id=analysis_run_id,
                     )
-
-                    # Store results
-                    state.security_results[repo_key] = security_result.to_dict()
-                    repo_result['security_analysis'] = security_result.to_dict()
-
+                    serialized = security_result.to_dict()
+                    security_results[repo_key] = serialized
+                    repo_result['security_analysis'] = serialized
                     logger.info(
-                        f"Security scan for {repo_key}: "
-                        f"{security_result.summary.get('total_vulnerabilities', 0)} vulnerabilities found "
-                        f"({security_result.summary.get('critical', 0)} critical)"
+                        "Security scan for %s: %s vulnerabilities found (%s critical)",
+                        repo_key,
+                        security_result.summary.get('total_vulnerabilities', 0),
+                        security_result.summary.get('critical', 0),
                     )
                 else:
-                    logger.warning(f"Repository path not found for {repo_key}, skipping security scan")
+                    logger.warning("Repository path not found for %s, skipping security scan", repo_key)
 
         except Exception as e:
-            logger.error(f"Security analysis failed: {e}")
-            state.errors.append(f"Security analysis failed: {e}")
+            logger.error("Security analysis failed: %s", e)
+            errors.append(f"Security analysis failed: {e}")
 
-        return state
+        return {
+            "current_step": "analyze_security",
+            "per_repo_results": per_repo_results,
+            "security_results": security_results,
+            "errors": errors,
+        }
 
     async def _analyze_repositories(self, state: GraphState) -> GraphState:
         """Analyze repositories for pain points"""
         logger.info("Step: Analyze repositories")
-        
-        state.current_step = "analyze_repositories"
-        
+        errors = list(state.get("errors", []))
+        per_repo_results = {
+            key: value.copy() if isinstance(value, dict) else value
+            for key, value in state.get("per_repo_results", {}).items()
+        }
+
         try:
-            for repo_key, repo_result in state.per_repo_results.items():
-                repo_data = repo_result['repository_data']
-                
-                # Analyze repository for pain points
+            for repo_key, repo_result in per_repo_results.items():
+                repo_data = repo_result.get('repository_data')
+                if not repo_data:
+                    continue
+
                 insights_data = {
                     'repository': {
                         'name': repo_data.name,
                         'owner': repo_data.owner,
                         'health_score': repo_data.health_score,
                         'open_prs': repo_data.open_prs,
-                        'ci_status': repo_data.ci_status
+                        'ci_status': repo_data.ci_status,
                     }
                 }
-                
+
                 analysis_response = self.model_manager.analyze_pain_points(
                     insights_data['repository'],
-                    repo_data.open_prs
+                    repo_data.open_prs,
                 )
-                
+
                 repo_result['analysis_results'] = {
                     'repository': repo_key,
                     'pain_points': analysis_response.metadata.get('pain_points', []) if analysis_response.metadata else [],
                     'confidence': analysis_response.confidence,
                     'model_used': analysis_response.model,
-                    'solutions': []
+                    'solutions': [],
                 }
-                
-                logger.info(f"Analyzed repository {repo_key}")
 
-                # Write per-agent log for analysis results
+                logger.info("Analyzed repository %s", repo_key)
+
                 lines = [
-                    f"Agent: structure_architecture",
+                    "Agent: structure_architecture",
                     f"Repository: {repo_key}",
                     f"Timestamp: {datetime.now(timezone.utc).isoformat()}",
                     "",
@@ -426,48 +505,56 @@ class RepositoryAnalysisGraph:
                 for p in repo_result['analysis_results']['pain_points']:
                     lines.append(f"- {p.get('type','unknown')} (severity {p.get('severity','?')}) - {p.get('description','')}")
                 content = "\n".join(lines)
-                self.output_agent.write_agent_log('structure_architecture', repo_key, content, json_payload={
-                    'analysis_results': repo_result['analysis_results']
-                })
-            
+                self.output_agent.write_agent_log(
+                    'structure_architecture',
+                    repo_key,
+                    content,
+                    json_payload={'analysis_results': repo_result['analysis_results']},
+                )
+
         except Exception as e:
-            state.errors.append(f"Repository analysis failed: {e}")
-        
-        return state
+            errors.append(f"Repository analysis failed: {e}")
+
+        return {
+            "current_step": "analyze_repositories",
+            "per_repo_results": per_repo_results,
+            "errors": errors,
+        }
     
     async def _generate_visualizations(self, state: GraphState) -> GraphState:
         """Generate visualizations for analysis results"""
         logger.info("Step: Generate visualizations")
-        
-        state.current_step = "generate_visualizations"
-        
+
+        errors = list(state.get("errors", []))
+        metrics = state.get("metrics", {})
+        analysis_run_id = metrics.get('analysis_run_id')
+        per_repo_results = {
+            key: value.copy() if isinstance(value, dict) else value
+            for key, value in state.get("per_repo_results", {}).items()
+        }
+
         try:
-            analysis_run_id = state.metrics.get('analysis_run_id')
-            
-            for repo_key, repo_result in state.per_repo_results.items():
+            for repo_key, repo_result in per_repo_results.items():
                 analysis_results = repo_result.get('analysis_results', {})
-                
                 if not analysis_results:
                     continue
-                
-                # Generate visualizations
+
                 insights_data = {
                     'repository': analysis_results.get('repository', {}),
-                    'pain_points': analysis_results.get('pain_points', [])
+                    'pain_points': analysis_results.get('pain_points', []),
                 }
-                
+
                 viz_results = self.viz_agent.generate_visualizations(
                     analysis_run_id,
                     insights_data,
-                    analysis_results.get('repository')
+                    analysis_results.get('repository'),
                 )
-                
-                repo_result['visualizations'] = viz_results
-                logger.info(f"Generated {len(viz_results)} visualizations for {repo_key}")
 
-                # Write per-agent log for visualization outputs
+                repo_result['visualizations'] = viz_results
+                logger.info("Generated %d visualizations for %s", len(viz_results), repo_key)
+
                 lines = [
-                    f"Agent: visualization",
+                    "Agent: visualization",
                     f"Repository: {repo_key}",
                     f"Timestamp: {datetime.now(timezone.utc).isoformat()}",
                     "",
@@ -476,139 +563,159 @@ class RepositoryAnalysisGraph:
                 for v in viz_results:
                     lines.append(f"- {v.type}: {v.title} -> {v.filename}")
                 content = "\n".join(lines)
-                self.output_agent.write_agent_log('visualization', repo_key, content, json_payload={
-                    'visualizations': [
-                        {
-                            'type': v.type,
-                            'title': v.title,
-                            'filename': v.filename,
-                            'quality_score': v.quality_score,
-                            'approved': v.approved
-                        } for v in viz_results
-                    ]
-                })
-            
+                self.output_agent.write_agent_log(
+                    'visualization',
+                    repo_key,
+                    content,
+                    json_payload={
+                        'visualizations': [
+                            {
+                                'type': v.type,
+                                'title': v.title,
+                                'filename': v.filename,
+                                'quality_score': v.quality_score,
+                                'approved': v.approved,
+                            }
+                            for v in viz_results
+                        ]
+                    },
+                )
+
         except Exception as e:
-            state.errors.append(f"Visualization generation failed: {e}")
-        
-        return state
+            errors.append(f"Visualization generation failed: {e}")
+
+        return {
+            "current_step": "generate_visualizations",
+            "per_repo_results": per_repo_results,
+            "errors": errors,
+        }
     
     async def _generate_report(self, state: GraphState) -> GraphState:
         """Generate analysis report"""
         logger.info("Step: Generate report")
-        
-        state.current_step = "generate_report"
-        
+
+        errors = list(state.get("errors", []))
+        summary = dict(state.get("summary", {}))
+        metrics = state.get("metrics", {})
+
         try:
-            analysis_run_id = state.metrics.get('analysis_run_id')
-            
-            # Prepare data for report generation
+            analysis_run_id = metrics.get('analysis_run_id')
+
             repositories = []
             analysis_results = []
             visualizations = []
             solutions = []
-            
-            for repo_key, repo_result in state.per_repo_results.items():
+
+            for repo_key, repo_result in state.get("per_repo_results", {}).items():
                 repo_data = repo_result.get('repository_data', {})
                 analysis = repo_result.get('analysis_results', {})
                 vizs = repo_result.get('visualizations', [])
-                
+
                 repositories.append({
                     'name': repo_data.name,
                     'owner': repo_data.owner,
                     'health_score': repo_data.health_score,
                     'open_prs': repo_data.open_prs,
-                    'ci_status': repo_data.ci_status
+                    'ci_status': repo_data.ci_status,
                 })
-                
+
                 analysis_results.append(analysis)
-                
-                # Collect all visualizations
+
                 for viz in vizs:
                     visualizations.append({
                         'type': viz.type,
                         'title': viz.title,
                         'filename': viz.filename,
                         'mermaid_code': viz.mermaid_code,
-                        'description': viz.metadata.get('description', '')
+                        'description': viz.metadata.get('description', ''),
                     })
-                
-                # Collect all solutions
+
                 for pain_point in analysis.get('pain_points', []):
                     if pain_point.get('recommendations'):
                         solutions.extend(pain_point['recommendations'])
-            
-            # Generate report
+
             report_path = self.output_agent.generate_analysis_report(
                 analysis_run_id,
                 repositories,
                 analysis_results,
                 visualizations,
                 solutions,
-                state.metrics
+                metrics,
             )
-            
-            state.summary['report_path'] = str(report_path)
-            logger.info(f"Generated analysis report: {report_path}")
-            
+
+            summary['report_path'] = str(report_path)
+            logger.info("Generated analysis report: %s", report_path)
+
         except Exception as e:
-            state.errors.append(f"Report generation failed: {e}")
-        
-        return state
+            errors.append(f"Report generation failed: {e}")
+
+        return {
+            "current_step": "generate_report",
+            "summary": summary,
+            "errors": errors,
+        }
 
     async def _review_pull_requests(self, state: GraphState) -> GraphState:
         """Run programmatic PR reviews when enabled"""
         logger.info("Step: Review pull requests")
-        state.current_step = "review_pull_requests"
+        errors = list(state.get("errors", []))
+        metrics = state.get("metrics", {})
+
         try:
-            analysis_run_id = state.metrics.get('analysis_run_id')
+            analysis_run_id = metrics.get('analysis_run_id')
             if not getattr(self.pr_agent, 'enabled', False):
                 logger.info("PR review disabled; skipping")
-                return state
-            for repo_key, repo_result in state.per_repo_results.items():
-                parts = repo_key.split('/')
-                if len(parts) != 2:
-                    continue
-                owner, name = parts
-                count = self.pr_agent.review_repo(owner, name, analysis_run_id)
-                logger.info(f"Reviewed {count} open PRs for {repo_key}")
+            else:
+                for repo_key in state.get("per_repo_results", {}).keys():
+                    parts = repo_key.split('/')
+                    if len(parts) != 2:
+                        continue
+                    owner, name = parts
+                    count = self.pr_agent.review_repo(owner, name, analysis_run_id)
+                    logger.info("Reviewed %d open PRs for %s", count, repo_key)
         except Exception as e:
-            state.errors.append(f"PR review failed: {e}")
-        return state
+            errors.append(f"PR review failed: {e}")
+
+        return {
+            "current_step": "review_pull_requests",
+            "errors": errors,
+        }
     
     async def _finalize_analysis(self, state: GraphState) -> GraphState:
         """Finalize the analysis workflow"""
         logger.info("Step: Finalize analysis")
-        
-        state.current_step = "finalize"
-        
+
+        errors = list(state.get("errors", []))
+        metrics = dict(state.get("metrics", {}))
+
         try:
-            analysis_run_id = state.metrics.get('analysis_run_id')
-            
-            # Update analysis run status
+            analysis_run_id = metrics.get('analysis_run_id')
+
             if analysis_run_id:
-                if state.errors:
+                if errors:
                     self.storage.update_analysis_run_status(
-                        analysis_run_id, 
-                        'failed', 
-                        f"Errors: {'; '.join(state.errors)}"
+                        analysis_run_id,
+                        'failed',
+                        f"Errors: {'; '.join(errors)}",
                     )
                 else:
                     self.storage.update_analysis_run_status(
-                        analysis_run_id, 
-                        'completed'
+                        analysis_run_id,
+                        'completed',
                     )
-            
-            # Clean up old reports
+
             self.output_agent.cleanup_old_reports()
-            
-            state.metrics['completed_at'] = datetime.now(timezone.utc).isoformat()
+            metrics['completed_at'] = datetime.now(timezone.utc).isoformat()
             logger.info("Analysis finalized successfully")
-            
+
         except Exception as e:
-            state.errors.append(f"Finalization failed: {e}")
-        
-        return state
+            errors.append(f"Finalization failed: {e}")
+
+        return {
+            "current_step": "finalize",
+            "errors": errors,
+            "metrics": metrics,
+        }
     
     def get_graph_stats(self) -> Dict[str, Any]:
         """Get statistics about the graph configuration"""

@@ -4,17 +4,17 @@ Specialized agents for data collection, analysis, visualization, and output gene
 """
 
 from .data_collection import DataCollectionAgent
-from .analysis import AnalysisAgent
-from .search import SearchAgent
 from .visualization import VisualizationAgent
 from .output import OutputAgent
 from .complexity_agent import ComplexityAgent
 from .security_agent import SecurityAgent
+from .pr_review import PRReviewAgent
+from .forensics_agent import call_forensics_wrapper
 
 __all__ = [
     'DataCollectionAgent',
-    'AnalysisAgent',
-    'SearchAgent',
+    'PRReviewAgent',
+    'call_forensics_wrapper',
     'VisualizationAgent',
     'OutputAgent',
     'ComplexityAgent',

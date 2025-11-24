@@ -2,10 +2,10 @@ import logging
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
-from models.model_manager import ModelManager
-from storage.adapter import StorageAdapter
-from agents.data_collection import GitHubClient
-from agents.output import OutputAgent
+from src.models.model_manager import ModelManager
+from src.storage.adapter import StorageAdapter
+from src.agents.data_collection import GitHubClient
+from src.agents.output import OutputAgent
 
 import requests
 

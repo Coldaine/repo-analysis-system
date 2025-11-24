@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 class ModelConfig:
     """Configuration for a specific model"""
     name: str
+    model: str
     endpoint: Optional[str] = None
     base_url: Optional[str] = None
-    model: str
     max_tokens: Optional[int] = None
     temperature: float = 0.3
     timeout: int = 30

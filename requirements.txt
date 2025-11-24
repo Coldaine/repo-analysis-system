@@ -3,9 +3,14 @@
 # Core Dependencies
 requests>=2.31.0
 pyyaml>=6.0.1
-langgraph>=0.0.10
-langchain>=0.2.0
 tenacity>=8.2.3
+
+# LangGraph and LangChain - Updated to v1.x stable
+langgraph>=1.0.0
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-anthropic>=0.3.0
+langchain-openai>=0.2.0
 
 # Database Dependencies
 psycopg2-binary>=2.9.7

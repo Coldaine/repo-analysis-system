@@ -35,7 +35,7 @@ EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import sys; sys.path.append('/app/src'); from utils.config import ConfigLoader; from storage.adapter import create_storage_adapter; config = ConfigLoader().load_config('/app/config/new_config.yaml'); storage = create_storage_adapter(config.get('database', {})); print(storage.health_check())" || exit 1
+    CMD python -c "from src.utils.config import ConfigLoader; from src.storage.adapter import create_storage_adapter; config = ConfigLoader().load_config('/app/config/new_config.yaml'); storage = create_storage_adapter(config.get('database', {})); print(storage.health_check())" || exit 1
 
 # Default command
 CMD ["python", "scripts/run_graph.py", "--config", "/app/config/new_config.yaml", "analyze"]
