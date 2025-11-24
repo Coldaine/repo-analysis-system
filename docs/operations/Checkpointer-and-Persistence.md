@@ -109,5 +109,5 @@ Forks maintain immutability—do not delete the source checkpoints even if the f
 ## Related Reading
 
 - [Runtime and Automation](./Runtime-and-Automation.md) – Event ingest, queueing, and when checkpoints fire.
-- [core-concepts/State-Model-and-Reducers.md](../core-concepts/State-Model-and-Reducers.md) – Returning deltas keeps checkpoints minimal and merge-safe.
+- [LangGraph State Model Best Practices](../best-practices-reference.md#langgraph-v10-alignment) – Returning deltas keeps checkpoints minimal and merge-safe.
 - [Observability and Reporting](./Observability-and-Reporting.md) – How checkpoint metadata surfaces in logs, traces, and dashboards.

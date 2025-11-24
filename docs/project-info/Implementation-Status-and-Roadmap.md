@@ -38,7 +38,7 @@
 **Goal**: Get the "Skeleton" walking.
 1.  **Ingest**: Implement the Redis Queue and the thin GitHub Action forwarder.
 2.  **Pre-Processing**: Build the Node.js script to generate the `RepoContext` JSON.
-3.  **Repository Charter**: Implement the `initialize_or_load_baseline` node (the charter initializer).
+3.  **Repository Charter**: Implement the charter initializer node (`initialize_or_load_baseline` is the current legacy name for the Repository Charter loader).
 4.  **Forensics**: Implement the Investigator Sub-Graph using LangGraph v1.0 patterns.
 
 ### Phase 2: Monitoring & Reporting (Q1 2026)

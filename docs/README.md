@@ -2,11 +2,13 @@
 
 The live, non-contradictory documentation for the Repo Analysis System.
 
+> Terminology update: We use **Repository Charter** (formerly "baseline") to describe each repo's locked intent/purpose record, and the eight anchors are referred to as the **Goal Framework**. This clarifies that we are preserving goals, not code snapshots.
+
 ## 📚 Core Concepts (`core-concepts/`)
 Fundamental architecture and patterns for LangGraph v1.0.
 - [System Architecture](core-concepts/System-Architecture.md): High-level design, orchestration, and persistence.
 - [Agents & Workflows](core-concepts/Agents-and-Workflows.md): Graph definitions, subgraphs, and agent patterns.
-- [State Model & Reducers](core-concepts/State-Model-and-Reducers.md): `TypedDict` state, `add_messages`, and reducer semantics.
+- [State Model & Reducers](best-practices-reference.md): `TypedDict` state, `add_messages`, and reducer semantics.
 - [ToolNode Patterns](core-concepts/ToolNode-and-Tool-Patterns.md): Scatter-gather, error handling, and tool execution.
 - [Runtime Object](core-concepts/Runtime-Object.md): Dependency injection and context management.
 
