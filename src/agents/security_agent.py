@@ -16,7 +16,6 @@ from pathlib import Path
 from src.security.vulnerability_scanner import (
     VulnerabilityScanner,
     VulnerabilityReport,
-    Vulnerability,
     Severity,
 )
 from src.storage.adapter import StorageAdapter

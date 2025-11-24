@@ -2,7 +2,7 @@
 Minimal change detection shim used to satisfy imports and allow tests to run.
 This is intentionally minimal as a placeholder until full change detection is implemented.
 """
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 
 class ChangeDetector:

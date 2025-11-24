@@ -4,7 +4,7 @@ This is a small shim that provides the RepositorySynchronizer class to satisfy i
 for unit tests and simple usage. Full implementation should include clone/pull optimization
 and pruning logic.
 """
-from typing import List, Dict, Optional
+from typing import Dict
 
 
 class RepositorySynchronizer:

@@ -1,8 +1,8 @@
 """
-Integration test for forensics agent - verify end-to-end functionality
+Integration tests for the forensics agent wrapper and graph wiring.
 """
-import os
-from langchain_core.messages import HumanMessage, SystemMessage
+from unittest.mock import patch
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from src.agents.forensics_agent import (
     compile_forensics_graph,
     call_forensics_wrapper,
@@ -24,18 +24,33 @@ def test_graph_compilation():
 def test_wrapper_function():
     """Test the functional wrapper with mock data"""
     runtime = MockRuntime()
+    runtime.config = {"configurable": {"thread_id": "test-thread"}}
     
-    # Simulate parent state
+    # Simulate parent state that would be passed from the orchestrator
     parent_state = {
         "current_conflict": {
             "description": "README.md says feature X is deprecated, but docs/api.md says it's supported",
             "files": ["README.md", "docs/api.md"]
         }
     }
-    
-    # Note: This would normally call the actual LLM, which we skip in testing
-    # We just verify the wrapper constructs the right input/output structure
-    print("✓ Wrapper function structure validated")
+
+    captured_child_input = {}
+
+    class StubGraph:
+        def invoke(self, child_input, config=None):
+            captured_child_input["value"] = child_input
+            assert config == runtime.config
+            return {"messages": [AIMessage(content="Stub verdict")]}  # pragma: no cover
+
+    with patch("src.agents.forensics_agent.compile_forensics_graph", return_value=StubGraph()):
+        result = call_forensics_wrapper(parent_state, runtime)
+
+    assert result["forensics_verdict"] == "Stub verdict"
+    assert result["messages"][0].content.startswith("Forensics Investigation Result: Stub verdict")
+    child_input = captured_child_input["value"]
+    assert child_input["conflict_context"] == parent_state["current_conflict"]["description"]
+    assert child_input["involved_files"] == parent_state["current_conflict"]["files"]
+    assert isinstance(child_input["messages"][0], HumanMessage)
 
 def test_state_typing():
     """Test that InvestigatorState type is correct"""

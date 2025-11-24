@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 
-from src.storage.adapter import StorageAdapter, Visualization
+from src.storage.adapter import StorageAdapter
 from src.models.model_manager import ModelManager
 
 logger = logging.getLogger(__name__)

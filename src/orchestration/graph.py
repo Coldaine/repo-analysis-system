@@ -18,7 +18,7 @@ try:
 except Exception:
     PostgresSaver = None
 
-from src.storage.adapter import StorageAdapter, AnalysisRun, Repository, User
+from src.storage.adapter import StorageAdapter
 from src.repo_manager import RepoManager, SyncResult
 from src.agents.data_collection import DataCollectionAgent
 from src.models.model_manager import ModelManager
@@ -27,7 +27,7 @@ from src.agents.output import OutputAgent
 from src.agents.complexity_agent import ComplexityAgent
 from src.agents.security_agent import SecurityAgent
 from src.agents.pr_review import PRReviewAgent
-from src.utils.logging import get_logger, correlation_id, timer_decorator, correlation_context
+from src.utils.logging import get_logger, correlation_context
 
 # Replace standard logging with enhanced structured logging
 logger = get_logger(__name__)
