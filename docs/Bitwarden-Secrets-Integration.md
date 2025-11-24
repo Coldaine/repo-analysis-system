@@ -46,23 +46,29 @@ api_keys:
 
 ## Proposed Solution: Bitwarden Secrets Manager
 
+### Strategy: Multi-Project Access
+Due to Bitwarden organization limits on the number of allowed projects, we will **not** create a dedicated "Repo Analysis System" project. Instead, we will leverage the existing project structure and grant the machine account access to all relevant projects.
+
+**Rationale**:
+- **Constraint**: Limited number of Bitwarden projects allowed per organization.
+- **Solution**: The `bws` CLI natively supports accessing secrets from multiple projects simultaneously if the machine account has permissions for them.
+- **Benefit**: Avoids restructuring existing secrets or hitting plan limits while maintaining secure, centralized access.
+
 ### Architecture
 
 ```mermaid
 graph TD
-    A[Bitwarden Secrets Manager] --> B[Local Development]
-    A --> C[Cron Execution]
-    A --> D[GitHub Actions]
+    subgraph Bitwarden Projects
+        P1[API Keys - Hot]
+        P2[AI Models]
+        P3[Search & Research]
+    end
 
-    B --> E[bws run -- python agentic_prototype.py]
-    C --> F[systemd/cron with bws wrapper]
-    D --> G[bitwarden/sm-action@v1]
+    M[Machine Account] -->|Read Access| P1
+    M -->|Read Access| P2
+    M -->|Read Access| P3
 
-    E --> H[Runtime Secrets Injection]
-    F --> H
-    G --> H
-
-    H --> I[agentic_prototype.py execution]
+    M -->|Injects| R[Runtime Environment]
 ```
 
 ### Key Benefits
@@ -77,44 +83,36 @@ graph TD
 
 ## Implementation Plan
 
-### Phase 1: Bitwarden Setup (Manual - Web UI)
+### Phase 1: Bitwarden Setup (Using Existing Projects)
 
-#### Step 1.1: Create Secrets Manager Project
-1. Navigate to Bitwarden web vault: https://vault.bitwarden.com
-2. Go to **Secrets Manager** → **Projects**
-3. Create project: **"Repo Analysis System"**
-4. Copy the **Project ID** for later use
+#### Step 1.1: Verify Existing Projects
+Ensure your machine account has access to your existing projects:
+- **API Keys - Hot** (General API keys)
+- **AI Models** (LLM credentials)
+- **Search & Research** (Search provider keys)
 
-#### Step 1.2: Create Machine Account
+#### Step 1.2: Add Missing Secrets
+Add any missing secrets to one of your existing projects (e.g., "API Keys - Hot").
+**Critical Missing Secret**:
+- `GITHUB_TOKEN` (Required for repository access)
+
+#### Step 1.3: Configure Machine Account
 1. Go to **Secrets Manager** → **Machine Accounts**
-2. Create machine account: **"repo-analysis-automation"**
-3. Grant **Read & Write** access to "Repo Analysis System" project
-4. Generate access token: **"Windows-Local-Token"**
-5. **IMPORTANT**: Copy the token immediately (shown only once)
-
-#### Step 1.3: Add Secrets to Project
-Using PowerShell with `bws` CLI:
+2. Select your machine account (e.g., "repo-analysis-automation")
+3. Grant **Read** access to ALL three projects listed above.
+4. Set the access token in your environment:
 
 ```powershell
-# Set the access token
 $env:BWS_ACCESS_TOKEN = "<your_token_here>"
-
-# Get your project ID
-$projectId = (bws project list | ConvertFrom-Json | Where-Object { $_.name -eq "Repo Analysis System" }).id
-
-# Create secrets
-bws secret create "GITHUB_TOKEN" "<your_github_token>" $projectId --note "GitHub API token for repository access"
-bws secret create "GITHUB_OWNER" "<your_github_username>" $projectId --note "Default repository owner"
-bws secret create "GLM_API_KEY" "<your_glm_key>" $projectId --note "GLM 4.6 API key for analysis"
-bws secret create "MINIMAX_API_KEY" "<your_minimax_key>" $projectId --note "MiniMax API key for lightweight tasks"
-bws secret create "GOOGLE_SEARCH_KEY" "<your_google_key>" $projectId --note "Google Custom Search API key"
-bws secret create "GOOGLE_CX" "<your_search_engine_id>" $projectId --note "Google Custom Search Engine ID"
-
-# Verify secrets created
-bws secret list
 ```
 
-#### Step 1.4: Secure Token Storage (Windows)
+#### Step 1.4: Verify Access
+Run the following to confirm you can see secrets from multiple projects:
+```powershell
+bws run -- env
+```
+
+#### Step 1.5: Secure Token Storage (Windows)
 ```powershell
 # Create secure directory
 New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.bws"
@@ -202,8 +200,8 @@ Update crontab to use `bws run`:
 # Edit crontab
 crontab -e
 
-# Add (every 6 hours with Bitwarden secrets)
-0 */6 * * * export BWS_ACCESS_TOKEN=$(cat ~/.bws/repo-analysis-token.txt) && cd /path/to/repo-analysis-system && /usr/local/bin/bws run -- python agentic_prototype.py >> logs/cron.log 2>&1
+# Add (recurring run with Bitwarden secrets)
+<cron cadence> export BWS_ACCESS_TOKEN=$(cat ~/.bws/repo-analysis-token.txt) && cd /path/to/repo-analysis-system && /usr/local/bin/bws run -- python agentic_prototype.py >> logs/cron.log 2>&1
 ```
 
 #### Option B: Systemd Service (Recommended for Linux)
@@ -231,12 +229,12 @@ Create `/etc/systemd/system/repo-analysis.timer`:
 
 ```ini
 [Unit]
-Description=Run Repository Analysis every 6 hours
+Description=Run Repository Analysis on a recurring cadence
 Requires=repo-analysis.service
 
 [Timer]
 OnBootSec=15min
-OnUnitActiveSec=6h
+OnUnitActiveSec=<cadence>
 Unit=repo-analysis.service
 
 [Install]
