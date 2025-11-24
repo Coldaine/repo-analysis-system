@@ -115,7 +115,6 @@ class RepositoryAnalysisGraph:
         workflow.add_edge("collect_data", "analyze_complexity")
         workflow.add_edge("analyze_complexity", "analyze_security")
         workflow.add_edge("analyze_security", "analyze_repositories")
-        workflow.add_edge("analyze_repositories", "generate_visualizations")
         workflow.add_edge("generate_visualizations", "review_pull_requests")
         workflow.add_edge("generate_visualizations", "generate_report")
         workflow.add_edge("review_pull_requests", "generate_report")
@@ -125,6 +124,7 @@ class RepositoryAnalysisGraph:
         # Add conditional edges for error handling
         workflow.add_conditional_edges(
             "analyze_repositories",
+            self._analysis_routing_condition,
             {
                 "success": "generate_visualizations",
                 "error": "finalize"
@@ -134,6 +134,12 @@ class RepositoryAnalysisGraph:
         checkpointer = self._build_checkpointer()
 
         return workflow.compile(checkpointer=checkpointer)
+
+    @staticmethod
+    def _analysis_routing_condition(state: GraphState) -> str:
+        """Route to finalize if any errors were recorded during repo analysis."""
+        errors = state.get("errors") or []
+        return "error" if errors else "success"
 
     def _build_checkpointer(self):
         """Select the configured LangGraph checkpointer."""
