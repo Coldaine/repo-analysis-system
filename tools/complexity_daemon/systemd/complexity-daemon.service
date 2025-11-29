@@ -1,0 +1,11 @@
+[Unit]
+Description=Complexity Daemon
+After=network.target
+
+[Service]
+ExecStart=%h/.local/bin/cogload daemon
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target
