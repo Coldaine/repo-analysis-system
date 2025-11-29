@@ -96,11 +96,12 @@ class TestCli(unittest.TestCase):
         self.runner.invoke(app, ["init"])
         self.runner.invoke(app, ["add", self.repo_path])
 
-        # Make and stage a change
-        test_file_path = os.path.join(self.repo_path, "test.py")
+        # Make and stage a change using absolute paths
+        abs_repo_path = os.path.abspath(self.repo_path)
+        test_file_path = os.path.join(abs_repo_path, "test.py")
         with open(test_file_path, "w") as f:
             f.write("def foo(): pass")
-        self.repo.index.add([test_file_path])
+        self.repo.index.add(["test.py"])  # Use relative path from repo root
 
         # Commit the change
         result = self.runner.invoke(app, ["commit", self.repo_path])

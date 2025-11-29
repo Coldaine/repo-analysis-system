@@ -81,3 +81,13 @@ def update_file_complexity(conn, repo_id: int, file_path: str, complexity: int):
         VALUES (?, ?, ?, ?)
     """, (repo_id, file_path, complexity, now))
     conn.commit()
+
+
+def delete_file_complexity(conn, repo_id: int, file_path: str):
+    """Deletes the complexity record for a file."""
+    cursor = conn.cursor()
+    cursor.execute(
+        "DELETE FROM file_complexities WHERE repo_id = ? AND file_path = ?",
+        (repo_id, file_path)
+    )
+    conn.commit()
