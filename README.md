@@ -30,7 +30,7 @@ The canonical documentation is located in the `docs/` directory:
 
 ```bash
 # Install Python dependencies
-pip install -r requirements.txt
+uv sync
 
 # Install Node.js dependencies (for pre-processing)
 npm install

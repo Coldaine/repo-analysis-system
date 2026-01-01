@@ -14,7 +14,7 @@ The **Repository Analysis System** is a LangGraph-orchestrated platform for auto
 
 ```bash
 # Install Python dependencies
-pip install -r requirements.txt
+uv sync
 
 # Note: Node.js dependencies are NOT yet implemented in this repository
 # (Pre-processing layer is planned but not built)
