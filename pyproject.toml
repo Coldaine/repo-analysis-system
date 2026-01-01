@@ -1,0 +1,27 @@
+[project]
+name = "repo-analysis-system"
+version = "0.1.0"
+description = "An intelligent, automated platform for monitoring repository health, tracking goals, and detecting architectural divergences."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.12.0",
+    "langchain>=1.2.0",
+    "langchain-anthropic>=0.3.0",
+    "langchain-core>=1.2.5",
+    "langchain-openai>=0.2.0",
+    "langgraph>=1.0.5",
+    "packaging>=23.0",
+    "psycopg2-binary>=2.9.7",
+    "pyyaml>=6.0.3",
+    "radon>=6.0.1",
+    "requests>=2.32.5",
+    "sqlalchemy>=2.0.0",
+    "tenacity>=9.1.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+]
